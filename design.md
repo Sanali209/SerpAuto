@@ -142,7 +142,7 @@ class CannyFilterNode:
 Узлы дерева возвращают один из трех статусов: `SUCCESS`, `FAILURE`, `RUNNING`.
 Статус `RUNNING` — ключевой для интеграции медленных ML-моделей.
 
-### Как работает узел вызова модели (LLM/CLIP)
+### 5.1. Узел вызова модели (LLM/CLIP)
 
 ```python
 class LLMInferenceNode: # (BehaviorTreeNode)
@@ -171,6 +171,99 @@ class LLMInferenceNode: # (BehaviorTreeNode)
 
         return "RUNNING" # Возвращаем RUNNING в этот тик
 ```
+
+### 5.2. Система Адаптеров для ИИ (AI Model Adapters)
+
+Чтобы движок мог бесшовно переключаться между разными моделями (локальные, облачные, вебхуки), используется **паттерн Adapter**. Адаптер — это сервисный класс, а не компонент состояния. `BehaviorTree` не знает о конкретной реализации модели, оно лишь ожидает список действий.
+
+#### 5.2.1. Единый Интерфейс (Base Adapter)
+
+Все адаптеры наследуются от базового класса и реализуют асинхронный метод генерации ответа.
+
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any
+from pydantic import BaseModel
+
+class AIResponse(BaseModel):
+    raw_text: str
+    parsed_actions: List[Dict[str, Any]] # Например: [{"action": "click", "x": 10, "y": 20}]
+    metadata: Dict[str, Any] # Токены, время ответа (для дебага в GUI)
+
+class BaseAIAdapter(ABC):
+    @abstractmethod
+    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
+        """Главный метод, который вызывает Behavior Tree"""
+        pass
+```
+
+#### 5.2.2. Подготовка данных (Context Builder)
+
+Перед вызовом адаптера, `ContextBuilder` преобразует `PerceptionComponent` (сырые данные) в компактный промпт или JSON для LLM.
+
+*   **Сырые данные**: `{"hp": 45, "enemies": [{"type": "orc", "dist": 5}]}`
+*   **Сжатый промпт**: "Текущее ХП: 45. Враги рядом: orc (дистанция 5). Выбери действие: attack, heal, flee."
+
+#### 5.2.3. Реализация Адаптеров
+
+**Тип А: Сложные LLM (OpenAI, Anthropic, Gemini)**
+Используют историю чата и Structured Output (JSON Mode).
+
+```python
+import httpx
+
+class OpenAILikeAdapter(BaseAIAdapter):
+    def __init__(self, api_key: str, model_name: str, base_url: str):
+        # ... инициализация ...
+        pass
+
+    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
+        # Формирование payload с историей сообщений
+        # Запрос к API с response_format={"type": "json_object"}
+        # Парсинга JSON из ответа
+        pass
+```
+
+**Тип Б: Простые / Локальные Модели (Hugging Face / Koyeb)**
+Архитектура Request-Response для конкретных задач (OCR, классификация) без истории чата.
+
+```python
+class SimpleMicroserviceAdapter(BaseAIAdapter):
+    def __init__(self, endpoint_url: str):
+        self.endpoint = endpoint_url
+
+    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
+        # Отправка фичей (context_data) на эндпоинт
+        # Конвертация ответа (например, класса и уверенности) в Action
+        pass
+```
+
+**Тип В: Автоматизации (n8n Webhook)**
+Для сложной логики с внешними интеграциями (БД, почта).
+
+```python
+class N8NWebhookAdapter(BaseAIAdapter):
+    def __init__(self, webhook_url: str):
+        self.webhook_url = webhook_url
+
+    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
+        # Отправка всего стейта агента на вебхук n8n
+        # Ожидание результата выполнения воркфлоу в формате Action
+        pass
+```
+
+#### 5.2.4. Парсер Экшенов (Guardrails)
+
+Узел `BehaviorTree` получает `AIResponse` и конвертирует список `parsed_actions` (JSON) в физические объекты `BaseAction`. Если модель вернула некорректный JSON или опасное действие, парсер выбрасывает ошибку, и узел возвращает статус `FAILURE`, активируя запасную ветку поведения.
+
+#### 5.2.5. AI Network Monitor (GUI)
+
+В режиме Debug / Architect доступно окно мониторинга сети ИИ:
+
+*   **Connection Setup**: Pydantic-настройки для горячего переключения адаптера (OpenAI ↔ Koyeb ↔ n8n).
+*   **Prompt Inspector**: Просмотр финального промпта перед отправкой.
+*   **Trace Log**: Лог запросов и ответов (latency, parsed actions).
+*   **Cost / Latency Tracker**: Графики времени ответа и расхода токенов.
 
 ## 6. Исполнение Действий (Action Execution System)
 
