@@ -52,12 +52,21 @@ class World:
         if not component_types:
             return set()
 
-        # Start with the set of entities for the first component
-        first_type = component_types[0]
+        # Optimization: Sort by set size to minimize intersection work
+        # Also ensures we use the smallest set as the base.
+        sorted_types = sorted(
+            component_types,
+            key=lambda ct: len(self._entities_with_component.get(ct, set()))
+        )
+
+        # Start with the smallest set
+        first_type = sorted_types[0]
         result_set = set(self._entities_with_component.get(first_type, set()))
 
         # Intersect with the rest (very fast in Python)
-        for comp_type in component_types[1:]:
+        for comp_type in sorted_types[1:]:
+            if not result_set:
+                break
             result_set &= self._entities_with_component.get(comp_type, set())
 
         return result_set
