@@ -166,6 +166,44 @@ class World:
         return self._components.get(comp_type, {}).get(entity)
 ```
 
+### 2.4. Высокопроизводительная Фильтрация (Set Intersection)
+
+В отличие от классического ООП, где главный цикл дергает `update()` у тысяч объектов, Системы ECS "мыслят" сигнатурами (наборами компонентов).
+
+Чтобы это работало быстро (тысячи тиков в секунду), `World` использует встроенную в Python магию пересечения множеств (`&`).
+
+```python
+def get_entities_with(self, *component_types: Type[BaseComponent]) -> Set[Entity]:
+    """Возвращает ID сущностей, у которых есть ВСЕ запрошенные компоненты"""
+    if not component_types:
+        return set()
+
+    # Берем множество ID для первого компонента
+    first_type = component_types[0]
+    result_set = set(self._entities_with_component.get(first_type, set()))
+
+    # Пересекаем с остальными (очень быстрая операция в Python на уровне C)
+    for comp_type in component_types[1:]:
+        result_set &= self._entities_with_component.get(comp_type, set())
+
+    return result_set
+```
+
+### 2.5. Кэширование Запросов (Query Caching)
+
+Пересечение множеств — это быстро, но для сложных сцен (10,000+ сущностей) делать это каждый тик все равно накладно.
+В высокопроизводительных движках применяется **Query Caching**.
+
+Вместо того чтобы каждый тик делать `set_A & set_B`, World один раз создает "Группу" (Group). Когда на сущность вешается новый компонент (`world.add_component()`), World сам проверяет, подходит ли сущность под сигнатуру Группы, и обновляет кэш.
+
+Метод `update` в Системе тогда работает за O(1), просто забирая готовый список.
+
+**Примеры Сигнатур:**
+
+1.  **PhysicsSystem**: `TransformComponent + VelocityComponent` (движение).
+2.  **WebExtractionSystem**: `DOMNodeComponent + PayloadExtractionComponent` (парсинг).
+3.  **UILogicSystem**: `UIElementComponent + TransformComponent` (клики мышкой).
+
 **Почему так:** `World` легко сериализовать целиком в JSON/SQLite на любом тике. Это дает возможность сохранять сессии, делать "перемотку времени" в дебагере и собирать датасеты для Imitation Learning.
 
 ## 3. Главный асинхронный цикл (The Engine Loop)
