@@ -23,32 +23,126 @@ Entity = uuid.UUID
 # 2. Компоненты - строго данные (Pydantic дает нам сериализацию и авто-GUI)
 class BaseComponent(BaseModel):
     pass
+```
 
-class PositionComponent(BaseComponent):
-    x: float = 0.0
-    y: float = 0.0
+### 2.2. Библиотека Стандартных Компонентов
 
-class PerceptionComponent(BaseComponent):
-    visible_entities: List[dict] = Field(default_factory=list)
-    passability_grid: List[List[int]] = Field(default_factory=list)
-    raw_frame_id: str | None = None # Ссылка на кадр в памяти для дебага
+Чтобы движок мог управлять станками, парсить веб-сайты или играть в игры, используется стандартизированный набор компонентов.
+
+#### A. Универсальные компоненты Ядра (Core Components)
+Эти компоненты есть у любого Агента, независимо от задачи.
+
+```python
+class MemoryComponent(BaseComponent):
+    """Рабочая и эпизодическая память (Blackboard)"""
+    blackboard: Dict[str, Any] = Field(default_factory=dict)
+    history: List[str] = Field(default_factory=list) # Лог последних действий для LLM (episodic_log)
 
 class ActionBufferComponent(BaseComponent):
-    queue: List[Any] = Field(default_factory=list) # Очередь BaseAction
+    """Очередь исполнения"""
+    queue: List[Any] = Field(default_factory=list) # Список объектов BaseAction
     current_action_status: str = "IDLE"
 
-class MemoryComponent(BaseComponent):
-    # Рабочая память (Blackboard)
-    blackboard: Dict[str, Any] = Field(default_factory=dict)
-    # Эпизодическая память (LLM Context)
-    episodic_log: List[Dict[str, Any]] = Field(default_factory=list)
+class PerceptionComponent(BaseComponent):
+    """Эфемерный снимок мира (обновляется каждый тик)"""
+    visible_entities: List[dict] = Field(default_factory=list) # Кого/что мы видим прямо сейчас
+    raw_context: Dict[str, Any] = Field(default_factory=dict) # Сюда складывается распарсенный JSON
+    raw_frame_id: str | None = None
 
 class BrainComponent(BaseComponent):
     status: str = "IDLE" # IDLE, RUNNING_BT, WAITING_LLM
     context: Dict[str, Any] = Field(default_factory=dict)
 ```
 
-### 2.2. Мир (Registry)
+#### B. Пространственные и UI компоненты (Desktop & Games)
+Для взаимодействия с визуальной средой (Legacy-софт, игровой мир).
+
+```python
+class TransformComponent(BaseComponent):
+    """Физическое положение на экране или в мире"""
+    x: float = 0.0
+    y: float = 0.0
+    width: float = 0.0
+    height: float = 0.0
+    layer: int = 0 # Полезно для перекрывающихся окон или 2D-спрайтов
+
+class SpatialGridComponent(BaseComponent):
+    """Для навигации (A* Pathfinding) в играх или сложных интерфейсах"""
+    grid_x: int = 0
+    grid_y: int = 0
+    is_passable: bool = True
+    weight: float = 1.0 # 1.0 - дорога, 5.0 - болото/сложный участок
+
+class UIElementComponent(BaseComponent):
+    """Семантика элемента интерфейса (кнопка CAD-системы, инвентарь)"""
+    element_type: str # "button", "input_field", "window_header"
+    extracted_text: str | None = None # Текст, полученный через OCR (Docling/Tesseract)
+    is_interactable: bool = True
+```
+
+#### C. Веб и Когнитивные компоненты (Scraping & Microservices)
+Для парсеров и оркестраторов в DOM-дереве или API.
+
+```python
+class WebSessionComponent(BaseComponent):
+    """Хранит стейт браузера для парсера"""
+    current_url: str = ""
+    cookies: Dict[str, str] = Field(default_factory=dict)
+    user_agent: str = ""
+
+class DOMNodeComponent(BaseComponent):
+    """Слепок HTML-элемента"""
+    xpath: str = ""
+    css_selector: str = ""
+    attributes: Dict[str, str] = Field(default_factory=dict) # href, class, id
+
+class PayloadExtractionComponent(BaseComponent):
+    """Контейнер для собранных данных перед отправкой в БД/FastAPI"""
+    target_schema_name: str # Например: "PriceAlertSchema"
+    extracted_data: Dict[str, Any] = Field(default_factory=dict)
+    validation_status: bool = False
+```
+
+#### D. Доменные / Игровые компоненты (RPG / Survival)
+Специфические метрики для симуляций.
+
+```python
+class StatsComponent(BaseComponent):
+    """Жизненные показатели"""
+    health: float = 100.0
+    max_health: float = 100.0
+    stamina: float = 100.0
+    status_effects: List[str] = Field(default_factory=list) # ["poisoned", "encumbered"]
+
+class InventoryComponent(BaseComponent):
+    """Управление ресурсами (лут, детали)"""
+    capacity: int = 20
+    items: Dict[str, int] = Field(default_factory=dict) # {"wood": 50, "iron_ore": 10}
+```
+
+#### Примеры Сборки Сущностей (Entity Assembly)
+
+Сущности собираются из компонентов как из конструктора:
+
+1.  **"Кнопка старта резки" (Заводской Legacy-софт)**
+    *   `TransformComponent` (x: 500, y: 300, w: 120, h: 40)
+    *   `UIElementComponent` (element_type: "button", extracted_text: "СТАРТ")
+
+2.  **"Вражеский юнит" (Игра)**
+    *   `TransformComponent` (x: 1024, y: 768)
+    *   `SpatialGridComponent` (grid_x: 15, grid_y: 20, is_passable: False)
+    *   `StatsComponent` (health: 45.0)
+
+3.  **"Карточка товара" (Web Scraper)**
+    *   `DOMNodeComponent` (xpath: "//div[@class='product-price']")
+    *   `UIElementComponent` (extracted_text: "₪1,200")
+
+4.  **"Агент-Парсер"**
+    *   `MemoryComponent` (blackboard: {"target_item": "Ryzen 5 7500F"})
+    *   `WebSessionComponent` (current_url: "https://ksp.co.il/...")
+    *   `ActionBufferComponent` (queue: [ClickAction, ExtractAction])
+
+### 2.3. Мир (Registry)
 
 ```python
 class World:
@@ -175,7 +269,7 @@ class SerpentineEngine:
     *   **Пример**: Узел `Find_Enemy` записывает `current_target_id=104`. Следующий узел `Attack_Target` читает этот ID и атакует.
 
 3.  **Эпизодическая память (LLM Context Window)**
-    *   **Компонент**: `MemoryComponent.episodic_log`.
+    *   **Компонент**: `MemoryComponent.history` (episodic_log).
     *   **Срок жизни**: Сессия.
     *   **Суть**: Хронологический лог событий `[Perception, Action, Result]`. Используется для формирования контекста LLM, чтобы модель помнила историю своих действий и ошибок.
 
