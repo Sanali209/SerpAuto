@@ -201,12 +201,72 @@ class ActionExecutionSystem: # (BaseSystem)
             #     buffer.current_action_status = "RUNNING"
 ```
 
-## 7. Модульность: GUI и ML Спортзал
+## 7. Когнитивный Дебаггер (GUI)
 
-Благодаря такой архитектуре, добавление новых режимов вообще не требует изменения ядра.
+Интерфейс Serpentine физически отделен от логики и является системой (`GUIDebugSystem`), отрисовывающей состояние `World` с помощью **DearPyGui (DPG)**. Это Immediate Mode GUI, позволяющий рендерить интерфейс на GPU без замедления работы движка.
 
-* **GUI (DearPyGui)**: Вы создаете `DearPyGuiSystem`. В методе `update()` она просто читает `World`, берет `PerceptionComponent`, берет схему из узлов фильтров и вызывает команды отрисовки DPG. Она работает параллельно с логикой.
-* **Спортзал (Gymnasium)**: Вы оборачиваешь `SerpentineEngine` в класс `Gym`. Метод `gym.step(action)` кладет action напрямую в `ActionBufferComponent` агента, вручную вызывает `engine.tick()` один раз и возвращает измененный `PerceptionComponent` и `RewardComponent` обратно в алгоритм обучения.
+### 7.1. Компоновка Рабочего Пространства (Workspace Layout)
+
+Интерфейс использует систему док-станций (Docking) и разбит на 5 зон:
+
+1.  **🎮 Верхняя панель: Control Deck (Управление Временем)**
+    *   **Транспорт**: `[▶ Play]`, `[⏸ Pause]`, `[⏭ Step]`. Кнопка **Step** заставляет движок сделать ровно 1 тик, что критически важно для дебага.
+    *   **Режимы (Mode Switcher)**: Выпадающий список (Debug / Architect, Teacher, Gym Monitor).
+    *   **Tick Rate Slider**: Ползунок скорости цикла (от 1 TPS до MAX).
+
+2.  **🌳 Левая панель: World Outliner & Component Inspector**
+    *   **Outliner**: Древовидный список всех активных сущностей (Entities).
+    *   **Inspector**: Отображает компоненты выбранной сущности. Значения обновляются в реальном времени (например, координаты в `PositionComponent` или очередь в `ActionBufferComponent`).
+
+3.  **👁️ Центральное окно: Perception View (Глазами Агента)**
+    *   **Visual Mode**: Стрим кадров (игра, браузер).
+    *   **Overlays**: Чекбоксы слоев дебага (Bounding Boxes, Passability Grid, Gaze/Clicks).
+    *   **Интерактивность**: В режиме **Teacher** клики по этому окну транслируются в игровые координаты для записи датасета.
+
+4.  **🧠 Нижняя панель: Behavior Tree & Action Log**
+    *   **BT Visualizer**: Граф поведения. Узлы подсвечиваются (🟩 Success, 🟥 Failure, 🟨 Running). Пульсирующий желтый узел означает ожидание ответа от LLM/ML.
+    *   **Console / Action Log**: Бегущая строка событий (тики, действия, ответы LLM).
+
+5.  **⚙️ Правая панель: Perception Pipeline (Редактор Фильтров)**
+    *   **Node Editor**: Визуальный редактор графа (Screen Capture ➡️ Grayscale ➡️ OCR).
+    *   **Preview Node**: Мини-экран у каждого узла для просмотра промежуточных результатов.
+
+### 7.2. Магия Авто-Интерфейса (Pydantic ➡️ DearPyGui)
+
+Движок автоматически генерирует GUI для настроек фильтров, используя рефлексию Python и Pydantic.
+
+**Пример:**
+
+```python
+class ColorFilterConfig(BaseModel):
+    is_enabled: bool = True
+    threshold: int = Field(default=128, ge=0, le=255, description="Уровень отсечения")
+    mode: Literal["RGB", "HSV"] = "HSV"
+```
+
+**Результат в GUI:**
+*   `bool` ➡️ `dpg.add_checkbox(label="is_enabled")`
+*   `int` (с ограничениями) ➡️ `dpg.add_slider_int(label="threshold", min_value=0, max_value=255)`
+*   `Literal` ➡️ `dpg.add_combo(items=["RGB", "HSV"])`
+
+Изменение ползунка в UI напрямую мутирует поле в объекте `config` узла, мгновенно влияя на обработку следующего кадра.
+
+### 7.3. Режим "Teacher" (Обучение с учителем)
+
+*   **Активация**: Кнопка `[⏺ RECORD DATASET]`.
+*   **Логика**: `Behavior Tree` отключается, управление передается `HumanInputSystem`.
+*   **Сбор данных**:
+    1.  Оператор кликает в окне **Perception View**.
+    2.  `HumanInputSystem` создает `Action` (например, `ClickAction`).
+    3.  `DatasetLoggerSystem` записывает пару `{PerceptionComponent (JSON), Action}` в файл датасета.
+    4.  Счетчик записанных сэмплов обновляется в реальном времени.
+
+### 7.4. Визуализация Data Extraction Pipeline (Web Parsing)
+
+Если агент работает с DOM-деревом:
+*   В **Perception View** отображается дерево объектов (как Chrome DevTools).
+*   Узлы в редакторе становятся экстракторами (DOM Source ➡️ XPath Finder ➡️ LLM Context).
+*   При изменении XPath в ползунке ноды, соответствующие элементы на странице мгновенно подсвечиваются.
 
 ## 8. Директории проекта
 
