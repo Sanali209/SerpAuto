@@ -1,6 +1,5 @@
 import unittest
 import uuid
-import json
 from core.world import World
 from core.registry import COMPONENT_REGISTRY
 from components.core import AgentMetaComponent, MemoryComponent
@@ -20,10 +19,10 @@ class TestPersistence(unittest.TestCase):
         original_world.add_component(box, TransformComponent(x=50.0, y=50.0))
 
         # 2. Serialize
-        json_dump = original_world.serialize()
+        data = original_world.serialize()
 
-        # Verify JSON structure
-        data = json.loads(json_dump)
+        # Verify structure
+        self.assertIsInstance(data, dict)
         self.assertIn("entities", data)
         self.assertIn("components", data)
         self.assertEqual(len(data["entities"]), 2)
@@ -32,7 +31,7 @@ class TestPersistence(unittest.TestCase):
 
         # 3. Deserialize into NEW world
         new_world = World()
-        new_world.deserialize(json_dump, COMPONENT_REGISTRY)
+        new_world.deserialize(data, COMPONENT_REGISTRY)
 
         # 4. Verify Integrity
         # Entity count
@@ -58,7 +57,7 @@ class TestPersistence(unittest.TestCase):
         world = World()
         world.add_entity() # Add a dummy entity
 
-        empty_snapshot = json.dumps({"entities": [], "components": {}})
+        empty_snapshot = {"entities": [], "components": {}}
 
         world.deserialize(empty_snapshot, COMPONENT_REGISTRY)
         self.assertEqual(len(world._entities), 0)

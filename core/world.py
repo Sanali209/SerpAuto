@@ -1,6 +1,5 @@
 import uuid
-import json
-from typing import Dict, Type, Set, List
+from typing import Dict, Type, Set, List, Any
 from .component import BaseComponent
 from .entity import Entity
 
@@ -62,8 +61,8 @@ class World:
 
         return result_set
 
-    def serialize(self) -> str:
-        """Dump entire world state to JSON string."""
+    def serialize(self) -> Dict[str, Any]:
+        """Dump entire world state to a dictionary."""
         state = {
             "entities": [str(e) for e in self._entities],
             "components": {}
@@ -77,15 +76,10 @@ class World:
                 # mode='json' is CRITICAL to serialize UUIDs to strings automatically
                 state["components"][class_name][str(entity_id)] = comp_instance.model_dump(mode='json')
 
-        return json.dumps(state, indent=2)
+        return state
 
-    def deserialize(self, json_str: str, component_registry: Dict[str, Type[BaseComponent]]):
-        """Restore world state from JSON string."""
-        try:
-            data = json.loads(json_str)
-        except json.JSONDecodeError:
-            raise ValueError("Invalid JSON string")
-
+    def deserialize(self, data: Dict[str, Any], component_registry: Dict[str, Type[BaseComponent]]):
+        """Restore world state from a dictionary."""
         self.clear()
 
         # 1. Restore Entities

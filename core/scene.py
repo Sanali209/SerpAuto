@@ -1,4 +1,3 @@
-import json
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -29,9 +28,7 @@ class SceneManager:
                 system_names.append(type(system).__name__)
 
         # 2. Serialize World
-        # World.serialize returns a JSON string, we need dict for embedding in SceneData
-        world_json_str = engine.world.serialize()
-        world_data = json.loads(world_json_str) # TODO: Optimize World.serialize to return dict
+        world_data = engine.world.serialize()
 
         # 3. Settings
         settings = SceneSettings(
@@ -94,7 +91,4 @@ class SceneManager:
 
         # 4. Deserialize World
         # We assume scene.entities is the dict structure World.deserialize expects
-        # But World.deserialize takes a JSON string currently.
-        # Let's fix World.deserialize or re-dump. Re-dumping is easier for now to reuse existing code.
-        world_dump_str = json.dumps(scene.entities)
-        engine.world.deserialize(world_dump_str, Registry.get_all_components())
+        engine.world.deserialize(scene.entities, Registry.get_all_components())
