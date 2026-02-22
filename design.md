@@ -1,748 +1,233 @@
-# Детальная архитектура ядра Serpentine
-
-Этот документ описывает, как абстрактные идеи превращаются в конкретные классы, интерфейсы и потоки данных. Архитектура строится вокруг строгой типизации (Pydantic), асинхронности (asyncio) и неблокирующего ввода-вывода.
-
-## 1. Архитектурная философия
-
-Serpentine — это асинхронный, tick-based движок, построенный на паттерне Entity-Component-System (ECS). Он предназначен для создания автономных агентов, способных оперировать в сложных цифровых средах.
-
-## 2. Структура ECS (Entity-Component-System)
-
-Вся память и состояние системы лежат в объекте `World`. Никакая логика не хранится в сущностях — это просто идентификаторы.
-
-### 2.1. Базовые структуры
-
-```python
-import uuid
-from pydantic import BaseModel, Field
-from typing import Dict, List, Type, Any
-
-# 1. Сущность - просто ID
-Entity = uuid.UUID
-
-# 2. Компоненты - строго данные (Pydantic дает нам сериализацию и авто-GUI)
-class BaseComponent(BaseModel):
-    pass
-```
-
-### 2.2. Библиотека Стандартных Компонентов
-
-Чтобы движок мог управлять станками, парсить веб-сайты или играть в игры, используется стандартизированный набор компонентов.
-
-#### A. Универсальные компоненты Ядра (Core Components)
-Эти компоненты есть у любого Агента, независимо от задачи.
-
-```python
-class MemoryComponent(BaseComponent):
-    """Рабочая и эпизодическая память (Blackboard)"""
-    blackboard: Dict[str, Any] = Field(default_factory=dict)
-    history: List[str] = Field(default_factory=list) # Лог последних действий для LLM (episodic_log)
-
-class ActionBufferComponent(BaseComponent):
-    """Очередь исполнения"""
-    queue: List[Any] = Field(default_factory=list) # Список объектов BaseAction
-    current_action_status: str = "IDLE"
-
-class PerceptionComponent(BaseComponent):
-    """Эфемерный снимок мира (обновляется каждый тик)"""
-    visible_entities: List[dict] = Field(default_factory=list) # Кого/что мы видим прямо сейчас
-    raw_context: Dict[str, Any] = Field(default_factory=dict) # Сюда складывается распарсенный JSON
-    raw_frame_id: str | None = None
-
-class BrainComponent(BaseComponent):
-    status: str = "IDLE" # IDLE, RUNNING_BT, WAITING_LLM
-    context: Dict[str, Any] = Field(default_factory=dict)
-```
-
-#### B. Пространственные и UI компоненты (Desktop & Games)
-Для взаимодействия с визуальной средой (Legacy-софт, игровой мир).
-
-```python
-class TransformComponent(BaseComponent):
-    """Физическое положение на экране или в мире"""
-    x: float = 0.0
-    y: float = 0.0
-    width: float = 0.0
-    height: float = 0.0
-    layer: int = 0 # Полезно для перекрывающихся окон или 2D-спрайтов
-
-class SpatialGridComponent(BaseComponent):
-    """Для навигации (A* Pathfinding) в играх или сложных интерфейсах"""
-    grid_x: int = 0
-    grid_y: int = 0
-    is_passable: bool = True
-    weight: float = 1.0 # 1.0 - дорога, 5.0 - болото/сложный участок
-
-class UIElementComponent(BaseComponent):
-    """Семантика элемента интерфейса (кнопка CAD-системы, инвентарь)"""
-    element_type: str # "button", "input_field", "window_header"
-    extracted_text: str | None = None # Текст, полученный через OCR (Docling/Tesseract)
-    is_interactable: bool = True
-```
-
-#### C. Веб и Когнитивные компоненты (Scraping & Microservices)
-Для парсеров и оркестраторов в DOM-дереве или API.
-
-```python
-class WebSessionComponent(BaseComponent):
-    """Хранит стейт браузера для парсера"""
-    current_url: str = ""
-    cookies: Dict[str, str] = Field(default_factory=dict)
-    user_agent: str = ""
-
-class DOMNodeComponent(BaseComponent):
-    """Слепок HTML-элемента"""
-    xpath: str = ""
-    css_selector: str = ""
-    attributes: Dict[str, str] = Field(default_factory=dict) # href, class, id
-
-class PayloadExtractionComponent(BaseComponent):
-    """Контейнер для собранных данных перед отправкой в БД/FastAPI"""
-    target_schema_name: str # Например: "PriceAlertSchema"
-    extracted_data: Dict[str, Any] = Field(default_factory=dict)
-    validation_status: bool = False
-```
+# Дизайн-документ: Когнитивный гибридный движок "Serpentine" (v2.0)
 
-#### D. Доменные / Игровые компоненты (RPG / Survival)
-Специфические метрики для симуляций.
+## 1. Концепция и Архитектурная философия
 
-```python
-class StatsComponent(BaseComponent):
-    """Жизненные показатели"""
-    health: float = 100.0
-    max_health: float = 100.0
-    stamina: float = 100.0
-    status_effects: List[str] = Field(default_factory=list) # ["poisoned", "encumbered"]
+Serpentine — это асинхронный, Tick-based движок на базе паттерна Entity-Component-System (ECS). Он спроектирован для создания как одиночных автономных агентов, так и многоагентных роев (Swarms), способных бесшовно оперировать во внешних средах (ОС, Web-браузеры, сторонние игры) и во внутренних симуляциях.
 
-class InventoryComponent(BaseComponent):
-    """Управление ресурсами (лут, детали)"""
-    capacity: int = 20
-    items: Dict[str, int] = Field(default_factory=dict) # {"wood": 50, "iron_ore": 10}
-```
+**Главная парадигма:** Полное разделение Данных, Логики и Интерфейсов. Движок работает как единая магистраль, где жесткие скрипты (Behavior Trees) и вероятностные модели (LLM/CV) комбинируются через стандартизированные интерфейсы.
 
-#### Примеры Сборки Сущностей (Entity Assembly)
+## 2. Ядро Движка (Core ECS & Loop)
 
-Сущности собираются из компонентов как из конструктора:
+### 2.1. Реестр Состояния (World)
+Весь стейт системы хранится в объекте `World`. Сущности (Entity) — это UUID-идентификаторы. Вся информация хранится в Компонентах. Поиск осуществляется через сверхбыстрое пересечение множеств (Query Caching), что позволяет обрабатывать тысячи сущностей за миллисекунды.
 
-1.  **"Кнопка старта резки" (Заводской Legacy-софт)**
-    *   `TransformComponent` (x: 500, y: 300, w: 120, h: 40)
-    *   `UIElementComponent` (element_type: "button", extracted_text: "СТАРТ")
+### 2.2. Базовые Компоненты (Data Models)
+Компоненты строго типизированы через Pydantic BaseModel. Это обеспечивает встроенную валидацию и фундамент для авто-генерации GUI.
 
-2.  **"Вражеский юнит" (Игра)**
-    *   `TransformComponent` (x: 1024, y: 768)
-    *   `SpatialGridComponent` (grid_x: 15, grid_y: 20, is_passable: False)
-    *   `StatsComponent` (health: 45.0)
+#### A. Когнитивные Компоненты
+*   `PerceptionComponent`: Снимок среды на текущий тик (JSON с парсингом DOM или CV-объектами).
+*   `MemoryComponent` (Blackboard): Рабочая память агента (Key-Value) и история (лог для LLM).
+*   `ActionBufferComponent`: Очередь FIFO (List[BaseAction]) для команд на исполнение.
+*   `BrainComponent`: Статус (IDLE, RUNNING, WAITING) и контекст.
+*   `RewardComponent` (RL): Награда за текущий шаг (для Gymnasium Mode).
 
-3.  **"Карточка товара" (Web Scraper)**
-    *   `DOMNodeComponent` (xpath: "//div[@class='product-price']")
-    *   `UIElementComponent` (extracted_text: "₪1,200")
+#### B. Коммуникационные Компоненты (Рой)
+*   `AgentMetaComponent`: Имя, роль, статус.
+*   `MailboxComponent`: Буфер Pub/Sub (inbox, outbox, subscriptions).
 
-4.  **"Агент-Парсер"**
-    *   `MemoryComponent` (blackboard: {"target_item": "Ryzen 5 7500F"})
-    *   `WebSessionComponent` (current_url: "https://ksp.co.il/...")
-    *   `ActionBufferComponent` (queue: [ClickAction, ExtractAction])
+#### C. Пространственные/Внутренние Компоненты
+*   `TransformComponent`: Позиция (x, y, w, h, layer).
+*   `VelocityComponent`: Вектор скорости (vx, vy).
+*   `ColliderComponent`: Геометрия для физики (Box/Circle).
+*   `SpriteComponent`: Текстура для внутреннего рендера.
 
-### 2.3. Мир (Registry)
+### 2.3. Главный Асинхронный Цикл (The Engine Tick Loop)
+Движок не блокируется тяжелыми вычислениями. Целевой Tick Rate — 20-60 TPS (в Headless/Gym режиме — безлимитно).
 
-```python
-class World:
-    def __init__(self):
-        # Структура: {ComponentClass: {EntityID: ComponentInstance}}
-        self._components: Dict[Type[BaseComponent], Dict[Entity, BaseComponent]] = {}
-        self._entities: set[Entity] = set()
+**Порядок выполнения Систем (Phases):**
+1.  **Mail Routing Phase**: `MessageRouterSystem` разносит письма из outbox в inbox адресатов.
+2.  **Perception Phase**: Сбор сырых данных (`SensoryInputSystem`) и прогон через направленный граф фильтров (`PerceptionPipelineSystem`). Обновление `PerceptionComponent`.
+3.  **Internal Physics Phase** (Опционально): `InternalPhysicsSystem` двигает внутренние сущности, обсчитывает коллизии.
+4.  **Cognition Phase**: `AI_BrainSystem` опрашивает Behavior Trees каждого агента. Если нужен ответ сети (LLM/API), создается асинхронная Task, а агент переходит в статус WAITING.
+5.  **Execution Phase**: `ActionExecutionSystem` маршрутизирует команды из буфера (клик мышью в ОС или вызов `on_click` внутри памяти).
+6.  **Telemetry Phase**: Обновление GUI (`GUIDebugSystem`), запись датасетов (`DatasetLoggerSystem`).
 
-    def add_entity(self) -> Entity:
-        ent = uuid.uuid4()
-        self._entities.add(ent)
-        return ent
+## 3. Восприятие и Компьютерное Зрение (Perception Pipeline)
 
-    def add_component(self, entity: Entity, component: BaseComponent):
-        comp_type = type(component)
-        if comp_type not in self._components:
-            self._components[comp_type] = {}
-        self._components[comp_type][entity] = component
+Конвейер обработки входящих данных, построенный на архитектуре DAG (Directed Acyclic Graph).
 
-    def get_component(self, entity: Entity, comp_type: Type[BaseComponent]):
-        return self._components.get(comp_type, {}).get(entity)
-```
+*   **Узлы (Nodes)**: Каждый фильтр имеет Pydantic-конфиг (авто-биндинг в GUI) и метод `process(context)`.
+*   **Базовые фильтры**:
+    *   `DOMParserNode`: Извлечение XPath/CSS селекторов.
+    *   `OpenCVNodes`: Crop, Grayscale, Threshold, MatchTemplate.
+    *   `YOLONode` (ONNX Runtime): Использование скомпилированных моделей Ultralytics YOLOv8/v11 для мгновенного поиска объектов (bounding boxes) без тяжеловесного PyTorch.
+    *   `OCRNode`: Извлечение текста с кропов (Docling/Tesseract).
+    *   `GridMapperNode`: Трансформация пикселей в изометрическую/2D сетку `passability_grid`.
 
-### 2.4. Высокопроизводительная Фильтрация (Set Intersection)
+## 4. Гибридный Мозг (Cognition Core)
 
-В отличие от классического ООП, где главный цикл дергает `update()` у тысяч объектов, Системы ECS "мыслят" сигнатурами (наборами компонентов).
+Сочетает детерминированную надежность и адаптивность ML.
 
-Чтобы это работало быстро (тысячи тиков в секунду), `World` использует встроенную в Python магию пересечения множеств (`&`).
+### 4.1. Behavior Tree (BT)
+Дерево поведения — основа логики. Узлы общаются через Blackboard агента.
 
-```python
-def get_entities_with(self, *component_types: Type[BaseComponent]) -> Set[Entity]:
-    """Возвращает ID сущностей, у которых есть ВСЕ запрошенные компоненты"""
-    if not component_types:
-        return set()
+*   **Control Nodes**: `Selector` (поиск первого успешного), `Sequence` (строгий порядок).
+*   **Decorator Nodes**: Инверторы, таймеры (`WaitNode`).
+*   **MAS Nodes**: `SendMessageNode` (отправка в Pub/Sub), `ListenForEventNode` (ожидание в inbox).
 
-    # Берем множество ID для первого компонента
-    first_type = component_types[0]
-    result_set = set(self._entities_with_component.get(first_type, set()))
+### 4.2. Адаптеры Моделей (AI Bridge)
+Behavior Tree не знает, какая модель подключена. Узел `LLM_Inference` использует адаптеры. `ContextBuilder` сжимает `PerceptionComponent` и Blackboard в текстовый JSON-промпт.
 
-    # Пересекаем с остальными (очень быстрая операция в Python на уровне C)
-    for comp_type in component_types[1:]:
-        result_set &= self._entities_with_component.get(comp_type, set())
+*   `OpenAILikeAdapter`: Для больших моделей (GPT-4/Gemini) с историей чата и Function Calling.
+*   `MicroserviceAdapter`: Для быстрых HTTP-вызовов к легковесным моделям (Koyeb/Hugging Face).
+*   `N8NWebhookAdapter`: Передача стейта агента во внешний воркфлоу n8n.
 
-    return result_set
-```
+## 5. Многоагентная Система (MAS & Pub/Sub)
 
-### 2.5. Кэширование Запросов (Query Caching)
+Агенты строго изолированы и не имеют прямого доступа к памяти друг друга.
 
-Пересечение множеств — это быстро, но для сложных сцен (10,000+ сущностей) делать это каждый тик все равно накладно.
-В высокопроизводительных движках применяется **Query Caching**.
+*   **Event Bus**: Общение происходит через `MessageRouterSystem`.
+*   **Топики (Topics)**: Агент-разведчик публикует `{"topic": "target_found", "payload": {...}}`. Агент-боец или Агент-скрапер, у которого в `MailboxComponent.subscriptions` есть `target_found`, получает это письмо в свой inbox на следующем тике.
+*   **Преимущества**: Предотвращение Race Conditions, легкое масштабирование роя, возможность перезапускать зависших агентов без обрушения всей системы.
 
-Вместо того чтобы каждый тик делать `set_A & set_B`, World один раз создает "Группу" (Group). Когда на сущность вешается новый компонент (`world.add_component()`), World сам проверяет, подходит ли сущность под сигнатуру Группы, и обновляет кэш.
+## 6. Исполнение Действий (Action Routing)
 
-Метод `update` в Системе тогда работает за O(1), просто забирая готовый список.
+Система паттерна Command. Любое действие — это объект (например, `ClickAction`, `SendAPIAction`).
 
-**Примеры Сигнатур:**
+**Маршрутизация среды (target_env):**
+Каждый экшен имеет флаг цели:
+*   `EXTERNAL_OS`: Выполняется через драйверы ОС (Playwright, PyAutoGUI). Агент взаимодействует с реальным браузером, игрой или заводским софтом.
+*   `INTERNAL_ENGINE`: Выполняется через прямое изменение компонентов другой сущности в World. Агент играет во "внутреннюю" игру или взаимодействует с другим внутренним агентом.
 
-1.  **PhysicsSystem**: `TransformComponent + VelocityComponent` (движение).
-2.  **WebExtractionSystem**: `DOMNodeComponent + PayloadExtractionComponent` (парсинг).
-3.  **UILogicSystem**: `UIElementComponent + TransformComponent` (клики мышкой).
+## 7. Инструментарий и GUI (DearPyGui)
 
-**Почему так:** `World` легко сериализовать целиком в JSON/SQLite на любом тике. Это дает возможность сохранять сессии, делать "перемотку времени" в дебагере и собирать датасеты для Imitation Learning.
+Графический интерфейс — это не часть логики, а подключаемая система (`GUIDebugSystem`), работающая в реальном времени.
 
-## 3. Главный асинхронный цикл (The Engine Loop)
+### 7.1. Авто-Интерфейс (Pydantic ➡️ DPG)
+Движок автоматически сканирует Pydantic-схемы конфигураций узлов и фильтров, генерируя ползунки, чекбоксы и выпадающие списки (Zero-code GUI для новых модулей).
 
-Главный цикл не должен блокироваться, даже если нейросеть думает 5 секунд или кадр обрабатывается тяжелым фильтром OpenCV.
-
-### Архитектура цикла
-
-```python
-import asyncio
-import time
-
-class SerpentineEngine:
-    def __init__(self):
-        self.world = World()
-        self.systems = [] # Список всех System (Perception, Brain, Action)
-        self.is_running = False
-        self.tick_rate = 20 # Ограничение TPS для Production/Debug
-
-    async def run(self):
-        self.is_running = True
-        last_time = time.perf_counter()
-
-        while self.is_running:
-            current_time = time.perf_counter()
-            dt = current_time - last_time
-            last_time = current_time
-
-            # 1. Выполнение всех систем по очереди
-            for system in self.systems:
-                await system.update(self.world, dt)
-
-            # 2. Искусственная задержка (Сон)
-            # В режиме Gymnasium (RL Gym) мы игнорируем sleep для макс. скорости
-            elapsed = time.perf_counter() - current_time
-            sleep_time = max(0, (1.0 / self.tick_rate) - elapsed)
-            await asyncio.sleep(sleep_time)
-```
-
-## 4. Поток Данных (Dataflow)
-
-Датафлоу в архитектуре ECS — это строгая однонаправленная магистраль. Данные никогда не текут в обратном направлении внутри одного шага. Все системы общаются друг с другом только через чтение и запись в Компоненты.
-
-Путь одного пакета данных — от пикселя на экране до физического клика мышкой — проходит через 5 фаз в рамках одного тика (Tick).
-
-### Фаза 1: Ingestion (Сбор сырых данных)
-Система маршрутизации определяет источник данных.
-*   **External (Веб/ОС)**: `SensoryInputSystem` делает скриншот (массив NumPy) или запрашивает DOM-дерево.
-*   **Internal (Внутренняя игра)**: `InternalStateReader` делает слепок текущего состояния `World`.
-*   **Результат**: Сырые данные помещаются во временный контекст (Context Object).
-
-### Фаза 2: Perception Pipeline (Трансформация в смысл)
-Сырые данные проходят через граф узлов. Каждый узел трансформирует контекст.
-1.  **CropNode**: Вырезает кусок изображения, сохраняет в `Context['cropped_img']`.
-2.  **YOLO/TemplateMatch**: Находит объекты на `cropped_img`, вычисляет координаты.
-3.  **StateBuilderNode (Sink)**: Собирает финальный JSON и записывает в `PerceptionComponent`.
-
+### 7.2. "God Mode" Dashboard (Рабочее пространство)
+*   **Global Roster**: Таблица активных агентов роя с их текущим статусом, CPU-нагрузкой и задачей.
+*   **Contextual Inspector**: Выбор агента обновляет все панели (Дерево, Память, Буфер) только для него.
+*   **Live BT Tracer**: Графическое отображение Behavior Tree с пульсирующими узлами (зеленый/красный/желтый) для отладки логики в реальном времени.
+*   **Buffer Editor**: Возможность вручную удалить ошибочный экшен из `ActionBufferComponent` или изменить переменную в Blackboard "на горячую".
+*   **Perception View**: Мультиоконный или сеточный (CCTV) рендер экранов/пайплайнов с нулевым копированием (Zero-copy GPU рендер через DPG Texture Registry). Возможность переключать промежуточные слои CV (например, видеть только слой Canny Edges или Bounding Boxes YOLO).
+*   **Message Broker Sniffer**: Лог Pub/Sub трафика между агентами с подсветкой Dead Letter (недоставленных) сообщений.
+
+## 8. MLOps и Режимы Работы
+
+Движок поддерживает мгновенное переключение режимов для обучения нейросетей.
+
+*   **Production (Headless)**: Запуск в Docker (например, на Koyeb). Максимальный TPS, UI отключен.
+*   **Teacher Mode (Сбор датасетов)**:
+    *   BT агента ставится на паузу.
+    *   Оператор управляет средой (через перехват мыши в GUI).
+    *   `DatasetLoggerSystem` каждый тик сохраняет пару `[Perception_JSON, User_Action]` в HDF5/JSONL.
+    *   Интеграция с экспорт-пайплайном Label Studio -> Ultralytics -> ONNX.
+*   **Gymnasium Mode (Спортзал RL)**:
+    *   Движок оборачивается в стандартный интерфейс OpenAI Gym (`reset()`, `step(action)`).
+    *   Таймауты `asyncio.sleep` отключаются для турбо-скорости (Fast-Forward).
+    *   Оценка действий происходит через добавленный `RewardComponent`.
+
+## 14. Режимы Работы (Operation Modes)
+
+Архитектура ECS позволяет кардинально менять поведение движка, просто изменяя состав активных Систем и параметры цикла времени.
+
+### 14.1. Mode: Architect & Debug (Режим Разработчика)
+Визуальное программирование и отладка.
+*   **Системы**: Standard + `GUIDebugSystem`.
+*   **Время**: Ограничено (20-60 TPS). Доступны Pause/Step.
+*   **Фичи**: Hot-Reloading воркспейсов, "God Mode" (редактирование памяти), Zero-Copy Rendering (OpenCV -> Texture).
+
+### 14.2. Mode: Production / Headless (Боевой серверный режим)
+Фоновая работа без GUI. Идеально для Docker/Koyeb.
+*   **Системы**: Standard + `TelemetrySystem`. `GUIDebugSystem` отключена.
+*   **Время**: Строгий лимит (10-20 TPS) для экономии CPU.
+*   **Фичи**: REST API (FastAPI) для внешнего управления, метрики (Prometheus), автономный Fallback при сбоях LLM.
+
+### 14.3. Mode: Teacher (Сбор датасетов)
+Студия захвата действий для Imitation Learning.
+*   **Системы**: `AI_BrainSystem` **отключена**. Включены `HumanInputSystem` и `DatasetLoggerSystem`.
+*   **Время**: Real-time (60 TPS).
+*   **Фичи**: Оператор управляет агентом через окно восприятия. Движок пишет пары `[Perception, Action]` в HDF5/JSONL для обучения моделей.
+
+### 14.4. Mode: Gymnasium (RL Спортзал)
+Симуляция для Reinforcement Learning (PPO, DQN).
+*   **Системы**: External-парсеров нет. Включены `InternalPhysicsSystem` и `EnvironmentJudgeSystem` (начисление наград).
+*   **Время**: Fast-Forward (Uncapped). `asyncio.sleep` отключен для макс. скорости.
+*   **Фичи**: Стандартный API `env.reset()`, `env.step()`. Параллельное обучение (векторизация) 100+ агентов в одной памяти.
+
+## 15. Sample Project: Serpentine Snake AI
+
+Этот сэмпл демонстрирует полный цикл: от создания внутренней симуляции (игры) до обучения агента (RL) и визуальной отладки. Игра живет исключительно в оперативной памяти ECS.
+
+### 15.1. Сборка Среды (Игра)
+Мы не используем внешние окна. Физика работает на компонентах:
+*   `GridPositionComponent`: Координаты x, y на сетке.
+*   `SnakeBodyComponent`: Очередь сегментов хвоста.
+*   `VelocityComponent`: Вектор движения (dx, dy).
+*   `ColliderComponent`: Тип (`head`, `body`, `apple`, `wall`).
+
+**Игровые Системы:**
+1.  `SnakeLocomotionSystem`: Двигает голову каждый тик, обновляет очередь хвоста.
+2.  `SnakeCollisionSystem`: Логика игры (Съел яблоко -> Рост, Врезался -> Reset).
+
+### 15.2. Когнитивный Интерфейс
+Агент — это сущность с мозгом, подключенная к игре через стандартные интерфейсы.
+*   **Perception**: `InternalGridStateNode` сканирует ECS и строит JSON-матрицу (10x10), где 0=Пусто, 1=Тело, 2=Голова, 3=Яблоко.
+*   **Action**: `ChangeDirectionAction` ("UP", "DOWN"...). `ActionExecutionSystem` меняет `VelocityComponent` головы.
+
+### 15.3. Обучение (Gymnasium Mode)
+Движок переходит в режим "Спортзала" (без GUI, без sleep).
+*   **Reward**: `EnvironmentJudgeSystem` начисляет +10 за яблоко, -10 за смерть, -0.1 за шаг.
+*   **Результат**: RL-модель (PPO) обучается за 5 минут (1M+ шагов).
+
+### 15.4. Визуализация (God Mode)
+В режиме Architect включается `InternalRenderSystem` (DearPyGui).
+*   **Game View**: Отрисовка змейки и яблока прямоугольниками.
+*   **Introspection**: Рядом видна "сырая" матрица восприятия, которую видит сеть.
+*   **Debug**: Можно поставить паузу, передвинуть яблоко вручную (изменив компонент), сделать шаг и проверить реакцию сети.
+
+## 16. Управление Сценами и Реестрами (Scene & Registry Management)
+
+Для реализации функционала, подобного игровым движкам (Unity/Unreal), где можно динамически добавлять компоненты и настраивать сцены, вводится система Реестров и Сцен.
+
+### 16.1. Глобальные Реестры (Auto-Registration)
+Чтобы UI и сериализатор знали о существовании компонентов и систем без хардкода, используются декораторы:
+*   `@register_component`: Регистрирует класс данных. Позволяет UI отображать список "Add Component".
+*   `@register_system(phase=...)`: Регистрирует логику и привязывает её к фазе (Physics, Perception).
+
+### 16.2. Формат Сцены (Scene Format)
+Файл `.json`, описывающий полную конфигурацию запуска (Карта + Логика):
 ```json
 {
-  "hp": 100,
-  "visible_targets": [{"type": "goblin", "x": 150, "y": 80}]
+  "systems": ["SnakeLocomotionSystem", "SnakeCollisionSystem"],
+  "entities": [ ... ],
+  "settings": { "tick_rate": 10, "mode": "GYMNASIUM" }
 }
 ```
 
-### Фаза 3: Cognition (Мозг и Принятие решений)
-`AI_BrainSystem` анализирует `PerceptionComponent` (без доступа к экрану).
-1.  **Behavior Tree (BT)**: Спускается по узлам.
-2.  **Logic**: Узел `Attack_Logic` принимает решение.
-    *   *Быстрый путь (Скрипт)*: Вычисляет координаты и генерирует `ClickAction`.
-    *   *Медленный путь (LLM)*: `LLM_InferenceNode` отправляет JSON через адаптер, возвращает `RUNNING`. Адаптер парсит асинхронный ответ в `ClickAction`.
-3.  **Результат**: `ClickAction` попадает в очередь `ActionBufferComponent`.
-
-### Фаза 4: Execution (Маршрутизация и Исполнение)
-`ActionExecutionSystem` берет верхний экшен из буфера и проверяет `target_env`.
-*   **External**: Вызывает драйвер ОС (pyautogui) для взаимодействия с внешним окном.
-*   **Internal**: Изменяет состояние сущностей во внутреннем `World` (например, уменьшает HP).
-*   **Результат**: Экшен помечается `SUCCESS`/`FAILURE` и удаляется из буфера.
-
-### Фаза 5: Telemetry & Memory (Логирование)
-Пассивные системы мониторинга.
-*   `GUIDebugSystem`: Обновляет графики и текстуры в DearPyGui.
-*   `DatasetLoggerSystem`: Сохраняет пару `[Perception_JSON + Action]` для Imitation Learning.
-
-**Изоляция потока:** Ни один этап не знает о деталях других (OpenCV не знает о браузере, LLM не знает о мышке). Это обеспечивает модульность конструктора.
-
-## 5. Архитектура Памяти Агента (Blackboard)
-
-Память агента реализуется через паттерн **Blackboard** (Классная доска) и хранится в `MemoryComponent`. Структура разделена на три уровня:
-
-### 5.1. Уровни Памяти
-
-1.  **Эфемерная память (Perception State)**
-    *   **Компонент**: `PerceptionComponent`.
-    *   **Срок жизни**: 1 тик (мгновенный снимок реальности).
-    *   **Суть**: Полностью перезаписывается на каждом тике пайплайном восприятия.
-
-2.  **Рабочая память (The Blackboard)**
-    *   **Компонент**: `MemoryComponent.blackboard` (Dictionary).
-    *   **Срок жизни**: От нескольких тиков до конца сессии.
-    *   **Суть**: Key-Value хранилище для флагов, промежуточных состояний и намерений (Intents). Доступно для чтения/записи всем узлам дерева поведения.
-    *   **Пример**: Узел `Find_Enemy` записывает `current_target_id=104`. Следующий узел `Attack_Target` читает этот ID и атакует.
-
-3.  **Эпизодическая память (LLM Context Window)**
-    *   **Компонент**: `MemoryComponent.history` (episodic_log).
-    *   **Срок жизни**: Сессия.
-    *   **Суть**: Хронологический лог событий `[Perception, Action, Result]`. Используется для формирования контекста LLM, чтобы модель помнила историю своих действий и ошибок.
-
-4.  **Долгосрочная/Семантическая память (Опционально)**
-    *   **Хранилище**: Векторная БД (ChromaDB) или SQLite.
-    *   **Срок жизни**: Постоянная.
-    *   **Суть**: Накопленные знания (карты, структуры сайтов), доступные через RAG (Retrieval-Augmented Generation).
-
-### 5.2. Работа с памятью в Behavior Tree
-
-Любой узел наследуется от базового класса с доступом к памяти:
-
-```python
-class CheckHealthNode(BehaviorTreeNode):
-    def tick(self, world: World, agent_id: Entity) -> Status:
-        # 1. Читаем эфемерную память (Сенсоры)
-        perception = world.get_component(agent_id, PerceptionComponent)
-        hp = perception.data.get("player_hp", 100)
-
-        # 2. Пишем в Blackboard (Рабочую память)
-        memory = world.get_component(agent_id, MemoryComponent)
-        memory.blackboard["last_known_hp"] = hp
-
-        # 3. Логика узла
-        if hp < 20:
-            memory.blackboard["needs_healing"] = True
-            return Status.SUCCESS # Условие сработало, запускаем ветку лечения
-
-        return Status.FAILURE
-```
-
-### 5.3. Инспекция и Редактирование (DearPyGui)
-
-В режиме отладки панель **Inspector** отображает таблицу `Blackboard Data`:
-*   Таблица с колонками: `Key`, `Value`, `Type`.
-*   **Интерактивность**: Значения можно менять прямо во время работы движка (Hot-Swapping). Например, если бот "завис" в состоянии `Looting`, можно вручную изменить значение на `Idle`, и дерево поведения мгновенно отреагирует.
-
-## 6. Архитектура Пайплайна Восприятия (Perception System)
-
-Сенсорные данные (скриншоты, DOM) проходят через направленный ациклический граф (DAG) фильтров.
-
-**Поток данных:**
-* `SensoryInputSystem` делает захват (например, Playwright берет скриншот).
-* `PerceptionPipelineSystem` прогоняет кадр через узлы.
-* Результат записывается в `PerceptionComponent` агента.
-
-### Структура узла (Node)
-
-Каждый фильтр имеет свою конфигурацию на Pydantic. DearPyGui будет динамически читать эту конфигурацию и строить интерфейс (ползунки, чекбоксы).
-
-```python
-class CannyFilterConfig(BaseModel):
-    threshold_1: int = Field(100, ge=0, le=255)
-    threshold_2: int = Field(200, ge=0, le=255)
-
-class CannyFilterNode:
-    def __init__(self):
-        self.config = CannyFilterConfig()
-
-    def process(self, frame, context):
-        # Применяем OpenCV
-        # edges = cv2.Canny(frame, self.config.threshold_1, self.config.threshold_2)
-
-        # Обновляем контекст (передаем дальше по цепочке)
-        # context['edges'] = edges
-        return frame, context # Placeholder
-```
-
-### MLOps Pipeline для Computer Vision
-
-Для задач обнаружения объектов (кнопок, юнитов, деталей) движок интегрируется с пайплайном MLOps на базе YOLO.
-
-#### 1. Сбор и Разметка (Annotation)
-*   **Инструменты**:
-    *   **Label Studio**: Для локальной разметки скриншотов, собранных `DatasetLoggerSystem`.
-    *   **Roboflow**: Облачное решение с авто-аугментацией (повороты, шум).
-    *   **CVAT**: Для разметки видеопотока.
-*   **Процесс**: Движок сохраняет кадры -> Оператор размечает -> Экспорт в формат YOLO.
-
-#### 2. Обучение (Training)
-Использование библиотеки **Ultralytics** (YOLOv8/v11) для стандартизированного обучения.
-
-```python
-from ultralytics import YOLO
-model = YOLO('yolov8n.pt')
-results = model.train(data='dataset.yaml', epochs=50, imgsz=640)
-```
-
-#### 3. Трекинг Экспериментов (Experiment Tracking)
-Интеграция с **Weights & Biases (W&B)** для мониторинга метрик (Loss, mAP) и визуализации предсказаний в реальном времени.
-
-#### 4. Экспорт и Инференс (Export & Inference)
-Для оптимизации производительности модели экспортируются в **ONNX** и запускаются через **ONNX Runtime** (C++ backend).
-
-**YOLO Detector Node в DPG:**
-
-```python
-import onnxruntime as ort
-from pydantic import BaseModel
-
-class YOLOConfig(BaseModel):
-    model_path: str = "models/my_custom_ui_detector.onnx"
-    confidence_threshold: float = 0.65 # Ползунок в DPG
-
-class YOLONode:
-    def __init__(self):
-        self.config = YOLOConfig()
-        # Инициализируем сессию один раз при старте
-        self.session = ort.InferenceSession(self.config.model_path)
-
-    def process(self, frame_in, context):
-        # 1. Подготавливаем кадр (ресайз, нормализация)
-        tensor = self.preprocess(frame_in)
-
-        # 2. Мгновенный прогон через ONNX Runtime
-        predictions = self.session.run(None, {self.session.get_inputs()[0].name: tensor})
-
-        # 3. Отсекаем мусор по confidence_threshold и парсим координаты
-        bounding_boxes = self.postprocess(predictions, self.config.confidence_threshold)
-
-        # 4. Кладем в контекст для Behavior Tree
-        context['detected_entities'] = bounding_boxes
-        return frame_in, context
-```
-
-## 7. Гибридный Мозг (Decision System & Behavior Trees)
-
-Здесь сходятся скрипты и нейросети. Дерево поведения опрашивается каждый тик.
-Узлы дерева возвращают один из трех статусов: `SUCCESS`, `FAILURE`, `RUNNING`.
-Статус `RUNNING` — ключевой для интеграции медленных ML-моделей.
-
-### 7.1. Узел вызова модели (LLM/CLIP)
-
-```python
-class LLMInferenceNode: # (BehaviorTreeNode)
-    def __init__(self):
-        self.task = None
-
-    async def tick(self, world: World, agent_id: Entity):
-        # 1. Если таска уже запущена, проверяем её статус
-        if self.task is not None:
-            if self.task.done():
-                result = self.task.result()
-                self.task = None
-                # Кладем результат в ActionBuffer агента!
-                self._push_action_to_buffer(world, agent_id, result)
-                return "SUCCESS"
-            else:
-                # Модель еще думает, цикл идет дальше, агент ждет
-                return "RUNNING"
-
-        # 2. Таски нет - запускаем новую
-        perception = world.get_component(agent_id, PerceptionComponent)
-        # prompt = self._build_prompt_from_perception(perception)
-
-        # Создаем неблокирующую задачу (вызов API Koyeb/HuggingFace)
-        # self.task = asyncio.create_task(self._call_llm_api(prompt))
-
-        return "RUNNING" # Возвращаем RUNNING в этот тик
-```
-
-### 7.2. Система Адаптеров для ИИ (AI Model Adapters)
-
-Чтобы движок мог бесшовно переключаться между разными моделями (локальные, облачные, вебхуки), используется **паттерн Adapter**. Адаптер — это сервисный класс, а не компонент состояния. `BehaviorTree` не знает о конкретной реализации модели, оно лишь ожидает список действий.
-
-#### 7.2.1. Единый Интерфейс (Base Adapter)
-
-Все адаптеры наследуются от базового класса и реализуют асинхронный метод генерации ответа.
-
-```python
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any
-from pydantic import BaseModel
-
-class AIResponse(BaseModel):
-    raw_text: str
-    parsed_actions: List[Dict[str, Any]] # Например: [{"action": "click", "x": 10, "y": 20}]
-    metadata: Dict[str, Any] # Токены, время ответа (для дебага в GUI)
-
-class BaseAIAdapter(ABC):
-    @abstractmethod
-    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
-        """Главный метод, который вызывает Behavior Tree"""
-        pass
-```
-
-#### 7.2.2. Подготовка данных (Context Builder)
-
-Перед вызовом адаптера, `ContextBuilder` преобразует `PerceptionComponent` (сырые данные) в компактный промпт или JSON для LLM.
-
-*   **Сырые данные**: `{"hp": 45, "enemies": [{"type": "orc", "dist": 5}]}`
-*   **Сжатый промпт**: "Текущее ХП: 45. Враги рядом: orc (дистанция 5). Выбери действие: attack, heal, flee."
-
-#### 7.2.3. Реализация Адаптеров
-
-**Тип А: Сложные LLM (OpenAI, Anthropic, Gemini)**
-Используют историю чата и Structured Output (JSON Mode).
-
-```python
-import httpx
-
-class OpenAILikeAdapter(BaseAIAdapter):
-    def __init__(self, api_key: str, model_name: str, base_url: str):
-        # ... инициализация ...
-        pass
-
-    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
-        # Формирование payload с историей сообщений
-        # Запрос к API с response_format={"type": "json_object"}
-        # Парсинга JSON из ответа
-        pass
-```
-
-**Тип Б: Простые / Локальные Модели (Hugging Face / Koyeb)**
-Архитектура Request-Response для конкретных задач (OCR, классификация) без истории чата.
-
-```python
-class SimpleMicroserviceAdapter(BaseAIAdapter):
-    def __init__(self, endpoint_url: str):
-        self.endpoint = endpoint_url
-
-    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
-        # Отправка фичей (context_data) на эндпоинт
-        # Конвертация ответа (например, класса и уверенности) в Action
-        pass
-```
-
-**Тип В: Автоматизации (n8n Webhook)**
-Для сложной логики с внешними интеграциями (БД, почта).
-
-```python
-class N8NWebhookAdapter(BaseAIAdapter):
-    def __init__(self, webhook_url: str):
-        self.webhook_url = webhook_url
-
-    async def generate_response(self, system_prompt: str, context_data: dict) -> AIResponse:
-        # Отправка всего стейта агента на вебхук n8n
-        # Ожидание результата выполнения воркфлоу в формате Action
-        pass
-```
-
-#### 7.2.4. Парсер Экшенов (Guardrails)
-
-Узел `BehaviorTree` получает `AIResponse` и конвертирует список `parsed_actions` (JSON) в физические объекты `BaseAction`. Если модель вернула некорректный JSON или опасное действие, парсер выбрасывает ошибку, и узел возвращает статус `FAILURE`, активируя запасную ветку поведения.
-
-#### 7.2.5. AI Network Monitor (GUI)
-
-В режиме Debug / Architect доступно окно мониторинга сети ИИ:
-
-*   **Connection Setup**: Pydantic-настройки для горячего переключения адаптера (OpenAI ↔ Koyeb ↔ n8n).
-*   **Prompt Inspector**: Просмотр финального промпта перед отправкой.
-*   **Trace Log**: Лог запросов и ответов (latency, parsed actions).
-*   **Cost / Latency Tracker**: Графики времени ответа и расхода токенов.
-
-## 8. Исполнение Действий (Action Execution System)
-
-Это финальное звено. Система берет экшены из буфера и транслирует их в реальный мир.
-Используется паттерн Command.
-
-```python
-class ActionExecutionSystem: # (BaseSystem)
-    async def update(self, world: World, dt: float):
-        # Ищем всех агентов с буфером действий
-        # Note: In real implementation, iterate correctly over entities with component
-        # for entity, buffer in world.get_components(ActionBufferComponent):
-        pass
-
-            # if not buffer.queue:
-            #     continue
-
-            # current_action = buffer.queue[0]
-
-            # Пробуем выполнить
-            # status = await current_action.execute()
-
-            # if status in ["SUCCESS", "FAILURE"]:
-            #     buffer.queue.pop(0) # Убираем из очереди
-            #     buffer.current_action_status = status
-            # elif status == "RUNNING":
-            #     # Например, экшен "Идти в точку X" может занять несколько тиков
-            #     buffer.current_action_status = "RUNNING"
-```
-
-## 9. Когнитивный Дебаггер (GUI)
-
-Интерфейс Serpentine физически отделен от логики и является системой (`GUIDebugSystem`), отрисовывающей состояние `World` с помощью **DearPyGui (DPG)**. Это Immediate Mode GUI, позволяющий рендерить интерфейс на GPU без замедления работы движка.
-
-Этот функционал уровня AAA-движков превращает систему в прозрачную лабораторию, используя встроенные механизмы Node Editor и Texture Registry.
-
-### 9.1. Компоновка Рабочего Пространства (Workspace Layout)
-
-Интерфейс использует систему док-станций (Docking) и разбит на 5 зон:
-
-1.  **🎮 Верхняя панель: Control Deck (Управление Временем)**
-    *   **Транспорт**: `[▶ Play]`, `[⏸ Pause]`, `[⏭ Step]`. Кнопка **Step** заставляет движок сделать ровно 1 тик, что критически важно для дебага.
-    *   **Режимы (Mode Switcher)**: Выпадающий список (Debug / Architect, Teacher, Gym Monitor).
-    *   **Tick Rate Slider**: Ползунок скорости цикла (от 1 TPS до MAX).
-
-2.  **🌳 Левая панель: World Outliner & Component Inspector**
-    *   **Outliner**: Древовидный список всех активных сущностей (Entities).
-    *   **Inspector**: Отображает компоненты выбранной сущности. Значения обновляются в реальном времени.
-
-3.  **👁️ Центральное окно: Perception View (Глазами Агента)**
-    *   **Visual Mode**: Стрим кадров (игра, браузер).
-    *   **Overlays**: Чекбоксы слоев дебага (Bounding Boxes, Passability Grid, Gaze/Clicks).
-    *   **Интерактивность**: В режиме **Teacher** клики по этому окну транслируются в игровые координаты для записи датасета.
-
-4.  **🧠 Нижняя панель: Behavior Tree & Action Log**
-    *   **BT Visualizer**: Граф поведения. Узлы подсвечиваются (🟩 Success, 🟥 Failure, 🟨 Running). Пульсирующий желтый узел означает ожидание ответа от LLM/ML.
-    *   **Console / Action Log**: Бегущая строка событий (тики, действия, ответы LLM).
-
-5.  **⚙️ Правая панель: Perception Pipeline (Редактор Фильтров)**
-    *   **Node Editor**: Визуальный редактор графа (Screen Capture ➡️ Grayscale ➡️ OCR).
-    *   **Preview Node**: Мини-экран у каждого узла для просмотра промежуточных результатов.
-
-### 9.2. Продвинутая Отладка (AAA-Level Features)
-
-#### 9.2.1. Редактор Behavior Tree (Live Brain Editor)
-Интерфейс представляет граф поведения агента в виде визуального нодового редактора с возможностями **Live Tracing** и **Hot-Swapping**:
-
-*   **Live Tracing**: В реальном времени видно, как сигнал проходит по узлам. Активный узел пульсирует желтым (`RUNNING`), успешные вспыхивают зеленым (`SUCCESS`), неудачные — красным (`FAILURE`).
-*   **Hot-Swapping**: Можно поставить движок на паузу, изменить параметры узла (например, таймаут) или перестроить связи (разорвать провод и подключить к другой ветке). После снятия с паузы агент продолжит выполнение с новой логикой.
-
-#### 9.2.2. Инспекция и редактирование Буфера Данных (God Mode)
-Полный контроль над памятью и намерениями агента через **Entity Inspector**:
-
-*   **Просмотр Очереди Действий (Action Queue)**: Список карточек с текущими и ожидающими действиями (например, `[RUNNING] ⏳ MoveToAction`, `[PENDING] 🕒 ClickAction`).
-*   **Удаление (Cancel)**: Возможность удалить любое запланированное действие (например, галлюцинацию LLM) до его выполнения.
-*   **Инъекция (Inject)**: Возможность вручную добавить действие в очередь через командную строку или меню (например, заставить агента нажать клавишу).
-*   **Редактирование State/Memory**: Возможность прямого редактирования значений в памяти агента (например, изменить здоровье врага в `PerceptionComponent`), на что скрипты отреагируют немедленно.
-
-#### 9.2.3. Визуальные буферы и X-Ray Vision
-Система позволяет видеть каждую стадию обработки изображения в пайплайне компьютерного зрения, используя **Texture Registry** в DPG.
-
-*   **Routing (Переключение буферов)**: Клик по любой ноде в редакторе пайплайна (например, `Canny Edges`) мгновенно переключает текстуру в главном окне **Perception View**, показывая результат работы именно этого фильтра.
-*   **Tab-view**: Вкладки над главным окном позволяют переключаться между финальным состоянием и промежуточными буферами.
-*   **Живой дебаг**: Возможность накладывать слои (Overlays) из разных буферов друг на друга (например, сырой кадр + Bounding Boxes из нейросети).
-*   **Производительность**: Используется **zero-copy** передача NumPy массивов из OpenCV напрямую в текстуры DPG, обеспечивая 60 FPS без торможения логики бота.
-
-### 9.3. Магия Авто-Интерфейса (Pydantic ➡️ DearPyGui)
-
-Движок автоматически генерирует GUI для настроек фильтров, используя рефлексию Python и Pydantic.
-
-**Пример:**
-
-```python
-class ColorFilterConfig(BaseModel):
-    is_enabled: bool = True
-    threshold: int = Field(default=128, ge=0, le=255, description="Уровень отсечения")
-    mode: Literal["RGB", "HSV"] = "HSV"
-```
-
-**Результат в GUI:**
-*   `bool` ➡️ `dpg.add_checkbox(label="is_enabled")`
-*   `int` (с ограничениями) ➡️ `dpg.add_slider_int(label="threshold", min_value=0, max_value=255)`
-*   `Literal` ➡️ `dpg.add_combo(items=["RGB", "HSV"])`
-
-Изменение ползунка в UI напрямую мутирует поле в объекте `config` узла, мгновенно влияя на обработку следующего кадра.
-
-### 9.4. Режим "Teacher" (Обучение с учителем)
-
-*   **Активация**: Кнопка `[⏺ RECORD DATASET]`.
-*   **Логика**: `Behavior Tree` отключается, управление передается `HumanInputSystem`.
-*   **Сбор данных**:
-    1.  Оператор кликает в окне **Perception View**.
-    2.  `HumanInputSystem` создает `Action` (например, `ClickAction`).
-    3.  `DatasetLoggerSystem` записывает пару `{PerceptionComponent (JSON), Action}` в файл датасета.
-    4.  Счетчик записанных сэмплов обновляется в реальном времени.
-
-### 9.5. Визуализация Data Extraction Pipeline (Web Parsing)
-
-Если агент работает с DOM-деревом:
-*   В **Perception View** отображается дерево объектов (как Chrome DevTools).
-*   Узлы в редакторе становятся экстракторами (DOM Source ➡️ XPath Finder ➡️ LLM Context).
-*   При изменении XPath в ползунке ноды, соответствующие элементы на странице мгновенно подсвечиваются.
-
-## 10. Внутренние Миры и Симуляция (Hybrid Environment)
-
-Архитектура позволяет бесшовно совмещать работу с внешними приложениями (автоматизация) и внутренними симуляциями (NPC, игры, обучение), не меняя ядро ECS.
-
-### 10.1. Абстракция Среды (Environment Routing)
-
-Разделение на уровне источников данных и исполнителей действий.
-
-*   **Внешняя среда (External)**: Данные из `ScreenCaptureNode` или `DOMParserNode`. Действия через Playwright или эмуляцию ОС.
-*   **Внутренняя среда (Internal)**: Среда и сущности (NPC, объекты) живут прямо в оперативной памяти движка.
-
-### 10.2. Прямое Восприятие (Direct Perception Bypass)
-
-Для внутренних сущностей не нужно зрение (CV). Используется специальный узел `InternalStateReaderNode`, который читает `World` напрямую.
-
-*   **Вход**: Запрос (например, "все враги в радиусе 100").
-*   **Выход**: Стандартный JSON для `PerceptionComponent`.
-*   **Преимущество**: `BehaviorTree` и LLM получают идентичную структуру данных, не зная, откуда она пришла (из OpenCV или из памяти).
-
-### 10.3. Маршрутизация Действий
-
-Система исполнения действий проверяет контекст цели в `BaseAction`.
-
-```python
-class ClickAction(BaseAction):
-    x: float
-    y: float
-    target_env: Literal["EXTERNAL_OS", "INTERNAL_ENGINE"] = "EXTERNAL_OS"
-```
-
-**Логика ActionExecutionSystem:**
-*   Если `EXTERNAL_OS` ➡️ Вызов системной мыши (pyautogui).
-*   Если `INTERNAL_ENGINE` ➡️ Поиск сущности по координатам и вызов `on_click()`.
-
-### 10.4. Внутренние Системы
-
-Для реализации внутренней "игры" добавляются системы, работающие параллельно с логикой агента:
-*   `InternalPhysicsSystem`: Обсчитывает движение и коллизии внутренних сущностей.
-*   `InternalRenderSystem`: Отрисовывает внутренние сущности (спрайты) в отдельном окне DPG.
-
-### 10.5. Мульти-Агентность и RL (Идеальный Спортзал)
-
-В одном цикле могут сосуществовать разные агенты:
-1.  **Парсер (Агент А)**: Следит за браузером.
-2.  **Трейдер (Агент Б)**: Принимает решения на основе данных Парсера.
-3.  **NPC (Агент В)**: Живет во внутренней симуляции.
-
-**Польза для RL:** Возможность обучать агента во внутренней среде в Headless-режиме (1000+ TPS), а затем переключать его на внешнюю среду (реальное приложение) без переобучения мозга, просто сменив источник Perception и `target_env` действий.
-
-## 11. Директории проекта
-
-```
-serpentine_engine/
-├── core/               # Базовые классы (World, Entity, System)
-├── components/         # Pydantic-схемы данных (Perception, Brain, Action)
-├── systems/            # Логика (ActionExecution, PerceptionUpdate, InternalPhysics)
-├── perception/         # Узлы пайплайна (OpenCV, OCR, CLIP, InternalStateReader)
-├── actions/            # Классы физических и логических действий
-├── brain/              # Интеграция Behavior Trees и коннекторы к LLM
-├── tools/              # DearPyGui интерфейсы, авто-генерация GUI из Pydantic
-└── envs/               # Обертки для Gymnasium и сбора датасетов
-```
+### 16.3. Headless Loader (CLI)
+Запуск движка с конкретной картой через консоль:
+`python main.py --scene levels/level_01.json --mode HEADLESS`
+Это позволяет тренировать агентов на разных конфигурациях мира без изменения кода.
+
+## 9. Система Персистентности (Persistence System)
+
+Архитектура ECS + Pydantic позволяет полностью разделить логику и данные, делая сериализацию тривиальной. Персистентность делится на три уровня:
+
+### 9.1. Слой 1: Конфигурация Проекта (Project Blueprints)
+Это статический "чертеж" агента.
+*   **Что сохраняется**: Топология Perception Pipeline (граф узлов), настройки фильтров (thresholds), структура Behavior Tree.
+*   **Формат**: JSON/YAML.
+*   **Юзкейс**: Деплой настроенного бота на сервер (Koyeb) в Headless-режиме.
+
+### 9.2. Слой 2: Состояние Мира (World State Snapshots)
+Это динамический дамп оперативной памяти в конкретный тик.
+*   **Что сохраняется**: Полный реестр `World` (Entity UUIDs + все текущие значения Компонентов).
+*   **Формат**: JSON.
+*   **Юзкейс**: Отладка "путешествием во времени". При ошибке делается авто-дамп. Разработчик загружает его в GUI и видит состояние мира ровно в момент бага.
+
+### 9.3. Слой 3: Layout Интерфейса (GUI State)
+Сохранение расположения окон для удобства разработчика.
+*   **Что сохраняется**: Позиции, размеры и докинг окон DearPyGui.
+*   **Формат**: `.ini` файл (нативный формат DPG).
+*   **Юзкейс**: Персонализация рабочего пространства (монитор логов справа, граф слева).
+
+### 9.4. Процесс Горячей Перезагрузки (Hot-Reload Workflow)
+Загрузка состояния в работающий движок требует остановки времени:
+1.  **Pause Engine**: `is_running = False`.
+2.  **Abort Tasks**: Отмена всех асинхронных задач (LLM запросов).
+3.  **Deserialize World**: Очистка памяти и восстановление сущностей из JSON.
+4.  **Rebuild GUI**: Генерация новых виджетов под загруженные данные.
+5.  **Resume Engine**: Запуск цикла.

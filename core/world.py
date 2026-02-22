@@ -1,107 +1,115 @@
 import uuid
-from typing import Dict, Set, Type, Any, Tuple, TypeVar, Optional
-from components.base import BaseComponent
-
-Entity = uuid.UUID
-T = TypeVar('T', bound=BaseComponent)
+import json
+from typing import Dict, Type, Set, List
+from .component import BaseComponent
+from .entity import Entity
 
 class World:
     def __init__(self):
-        # Storage: {ComponentType: {EntityID: ComponentInstance}}
+        # Structure: {ComponentClass: {EntityID: ComponentInstance}}
         self._components: Dict[Type[BaseComponent], Dict[Entity, BaseComponent]] = {}
-        # Index: {ComponentType: set(EntityID)}
+        # Stores which entities have which component for fast lookup
         self._entities_with_component: Dict[Type[BaseComponent], Set[Entity]] = {}
-        # Query Cache: {Tuple[ComponentType]: set(EntityID)}
-        self._queries: Dict[Tuple[Type[BaseComponent], ...], Set[Entity]] = {}
-        # All Entities
         self._entities: Set[Entity] = set()
 
-    def create_entity(self) -> Entity:
-        """Creates a new entity ID."""
-        entity = uuid.uuid4()
-        self._entities.add(entity)
-        return entity
+    def clear(self):
+        """Removes all entities and components from the world"""
+        self._entities.clear()
+        self._components.clear()
+        self._entities_with_component.clear()
 
-    def delete_entity(self, entity: Entity):
-        """Removes an entity and all its components."""
-        if entity not in self._entities:
-            return
-
-        # Find all components attached to this entity
-        # This is slow, maybe we need an entity -> components map?
-        # For now, iterate component types.
-        for comp_type in list(self._components.keys()):
-            if entity in self._components[comp_type]:
-                self.remove_component(entity, comp_type)
-
-        self._entities.discard(entity)
+    def add_entity(self, uid: uuid.UUID = None) -> Entity:
+        """Add a new entity. If uid is provided, use it (for deserialization)."""
+        ent = uid if uid else uuid.uuid4()
+        self._entities.add(ent)
+        return ent
 
     def add_component(self, entity: Entity, component: BaseComponent):
-        """Adds a component to an entity and updates queries."""
         comp_type = type(component)
 
-        # 1. Initialize storage for this type if needed
+        # Initialize storage for this component type if needed
         if comp_type not in self._components:
             self._components[comp_type] = {}
             self._entities_with_component[comp_type] = set()
 
-        # 2. Add to storage
         self._components[comp_type][entity] = component
         self._entities_with_component[comp_type].add(entity)
 
-        # 3. Update active queries (Reactive Update)
-        # Check if this entity now satisfies any existing query
-        for query_sig, query_set in self._queries.items():
-            if comp_type in query_sig:
-                # If the entity has all components in the signature, add it
-                if self.has_components(entity, *query_sig):
-                    query_set.add(entity)
-
     def remove_component(self, entity: Entity, comp_type: Type[BaseComponent]):
-        """Removes a component from an entity and updates queries."""
         if comp_type in self._components and entity in self._components[comp_type]:
             del self._components[comp_type][entity]
-            self._entities_with_component[comp_type].discard(entity)
+            self._entities_with_component[comp_type].remove(entity)
 
-            # Update queries
-            for query_sig, query_set in self._queries.items():
-                if comp_type in query_sig:
-                    query_set.discard(entity)
-
-    def has_components(self, entity: Entity, *comp_types: Type[BaseComponent]) -> bool:
-        """Checks if an entity has all specified component types."""
-        for ct in comp_types:
-            if ct not in self._components or entity not in self._components[ct]:
-                return False
-        return True
-
-    def get_component(self, entity: Entity, comp_type: Type[T]) -> Optional[T]:
-        """Retrieves a component instance for an entity."""
+    def get_component(self, entity: Entity, comp_type: Type[BaseComponent]):
         return self._components.get(comp_type, {}).get(entity)
 
-    def get_entities_with(self, *component_types: Type[BaseComponent]) -> Set[Entity]:
-        """Returns a set of entities that have ALL specified components.
+    def get_components(self, comp_type: Type[BaseComponent]) -> Dict[Entity, BaseComponent]:
+        """Returns all components of a specific type mapping Entity -> Component"""
+        return self._components.get(comp_type, {})
 
-        Uses caching and set intersection for O(1) or O(N_small) performance.
-        """
+    def get_entities_with(self, *component_types: Type[BaseComponent]) -> Set[Entity]:
+        """Returns IDs of entities that have ALL requested components (Intersection)"""
         if not component_types:
             return set()
 
-        # Sort to ensure signature consistency (e.g. (A, B) == (B, A))
-        signature = tuple(sorted(component_types, key=lambda x: x.__name__))
+        # Start with the set of entities for the first component
+        first_type = component_types[0]
+        result_set = set(self._entities_with_component.get(first_type, set()))
 
-        # 1. Check Cache
-        if signature in self._queries:
-            return self._queries[signature]
+        # Intersect with the rest (very fast in Python)
+        for comp_type in component_types[1:]:
+            result_set &= self._entities_with_component.get(comp_type, set())
 
-        # 2. Compute Intersection (Cold Start)
-        # Start with the smallest set ideally, but here we just take the first one
-        first_type = signature[0]
-        result = set(self._entities_with_component.get(first_type, set()))
+        return result_set
 
-        for ct in signature[1:]:
-            result &= self._entities_with_component.get(ct, set())
+    def serialize(self) -> str:
+        """Dump entire world state to JSON string."""
+        state = {
+            "entities": [str(e) for e in self._entities],
+            "components": {}
+        }
 
-        # 3. Cache the result
-        self._queries[signature] = result
-        return result
+        for comp_type, entity_map in self._components.items():
+            class_name = comp_type.__name__
+            state["components"][class_name] = {}
+            for entity_id, comp_instance in entity_map.items():
+                # Use Pydantic's model_dump to serialize
+                # mode='json' is CRITICAL to serialize UUIDs to strings automatically
+                state["components"][class_name][str(entity_id)] = comp_instance.model_dump(mode='json')
+
+        return json.dumps(state, indent=2)
+
+    def deserialize(self, json_str: str, component_registry: Dict[str, Type[BaseComponent]]):
+        """Restore world state from JSON string."""
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON string")
+
+        self.clear()
+
+        # 1. Restore Entities
+        for entity_str in data.get("entities", []):
+            self.add_entity(uid=uuid.UUID(entity_str))
+
+        # 2. Restore Components
+        components_data = data.get("components", {})
+        for class_name, entity_map in components_data.items():
+            if class_name not in component_registry:
+                print(f"Warning: Component class '{class_name}' not found in registry. Skipping.")
+                continue
+
+            comp_class = component_registry[class_name]
+
+            for entity_id_str, comp_data in entity_map.items():
+                try:
+                    entity_id = uuid.UUID(entity_id_str)
+                    if entity_id not in self._entities:
+                        # Should have been created in step 1, but safe to add if missing
+                        self.add_entity(uid=entity_id)
+
+                    # Use Pydantic's model_validate to reconstruct
+                    comp_instance = comp_class.model_validate(comp_data)
+                    self.add_component(entity_id, comp_instance)
+                except Exception as e:
+                    print(f"Error deserializing {class_name} for {entity_id_str}: {e}")
