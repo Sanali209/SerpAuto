@@ -39,10 +39,18 @@ class AgentMetaComponent(BaseComponent):
     role: str = "Scraper" # Parser, Warrior, Analyst
     status: str = "IDLE" # ACTIVE, ERROR, WAITING
 
-class CommunicationComponent(BaseComponent):
-    """Рация: Система обмена сообщениями"""
-    inbox: List[Dict[str, Any]] = Field(default_factory=list)
-    outbox: List[Dict[str, Any]] = Field(default_factory=list)
+class Message(BaseModel):
+    """Единица обмена информацией между агентами"""
+    sender_id: uuid.UUID
+    target_id: uuid.UUID | None = None # Если None — это Broadcast (широковещание)
+    topic: str # Например: "price_drop", "enemy_spotted"
+    payload: Dict[str, Any] # Сами данные JSON
+
+class MailboxComponent(BaseComponent):
+    """Почтовый ящик для Pub/Sub архитектуры"""
+    inbox: List[Message] = Field(default_factory=list)
+    outbox: List[Message] = Field(default_factory=list)
+    subscriptions: List[str] = Field(default_factory=list) # На какие топики подписан агент
 
 class MemoryComponent(BaseComponent):
     """Рабочая и эпизодическая память (Blackboard)"""
@@ -769,21 +777,53 @@ serpentine_engine/
 2.  **Специализация**: Агенты имеют роли (Scraper, Trader, Analyst).
 3.  **Асинхронное общение**: Агенты не блокируют друг друга.
 
-### 12.2. Коммуникация (Message Broker Pattern)
+### 12.2. Архитектура Pub/Sub (Издатель/Подписчик)
 
-Агенты **никогда** не лезут в чужую память (`MemoryComponent`) напрямую. Это нарушает инкапсуляцию и создает Race Conditions. Вместо этого используется **CommunicationComponent**.
+Прямые вызовы между агентами (чтение `MemoryComponent` другого агента) — это архитектурное самоубийство (Race Conditions). Единственный путь — единая **Шина Событий (Event Bus)**.
 
-**Сценарий:**
-1.  **Агент А (Разведчик)** нашел цель. Он кладет сообщение `{"type": "target_found", "coords": [10, 20]}` в свой `outbox`.
-2.  **SwarmSystem (Оркестратор)** забирает сообщение и маршрутизирует его.
-3.  **Агент Б (Штурмовик)** получает сообщение в свой `inbox` и реагирует.
+Используется `MailboxComponent`:
+*   **Inbox**: Сюда приходят письма от других.
+*   **Outbox**: Сюда агент кладет исходящие.
+*   **Subscriptions**: Список топиков, которые интересны агенту.
 
-### 12.3. SwarmSystem
+### 12.3. Оркестратор: MessageRouterSystem
 
-Новая система, которая работает каждый тик:
-*   Считывает `outbox` всех агентов.
-*   Фильтрует и маршрутизирует сообщения (Broadcast или Direct).
-*   Кладет сообщения в `inbox` адресатов.
+Эта система запускается в **Phase 1 (Ingestion)** каждого тика. Она играет роль почтальона.
+
+**Логика работы:**
+1.  Собирает все сообщения из `outbox` всех сущностей.
+2.  Очищает `outbox`.
+3.  Маршрутизирует:
+    *   **Direct**: Если указан `target_id`, кладет сообщение в `inbox` адресата.
+    *   **Broadcast**: Если `target_id` нет, ищет всех агентов с нужным `topic` в `subscriptions` и копирует им сообщение.
+
+Результат: Полная изоляция памяти и отсутствие блокировок.
+
+### 12.4. Интеграция с Мозгом (Behavior Tree Nodes)
+
+Чтобы агенты могли пользоваться "рацией", вводятся новые узлы BT:
+
+1.  **SendMessageNode**:
+    *   Берет данные из Blackboard.
+    *   Формирует `Message(topic="deal_found", payload={...})`.
+    *   Кладет в `outbox`. Возвращает `SUCCESS`.
+
+2.  **ListenForEventNode(topic)**:
+    *   Узел-стражник. Проверяет `inbox`.
+    *   Если сообщения нет ➡️ `FAILURE` (агент ждет).
+    *   Если есть ➡️ Извлекает `payload` в Blackboard, возвращает `SUCCESS`, запуская ветку реакции.
+
+### 12.5. Юзкейс "Рой" (Swarm Use Case)
+
+**Задача**: Спарсить 500 страниц сложного сайта (anti-bot protection).
+
+*   **Агент-Диспетчер (1 шт)**: Генерирует 500 сообщений `scrape_task` с payload `{"url": "page_N"}`.
+*   **Агенты-Воркеры (10 шт)**:
+    *   Подписаны на `scrape_task`.
+    *   Берут задачу, парсят, шлют `task_done` с данными.
+*   **Агент-Аналитик (1 шт)**:
+    *   Подписан на `task_done`.
+    *   Агрегирует результаты и сохраняет в БД одним батчем.
 
 ## 13. UI Evolution: Swarm Control Center (God Mode)
 
@@ -820,3 +860,11 @@ UI реагирует на выбор агента в списке.
 *   Визуализация потоков данных между агентами.
 *   Светящиеся импульсы на связях при передаче сообщений.
 *   Помогает отлаживать Deadlocks (взаимные блокировки).
+
+### 13.6. Монитор Брокера Сообщений (Message Broker Monitor)
+
+Многоагентность требует прозрачности потоков данных.
+
+*   **Traffic Visualizer (Матрица)**: Таблица "Отправитель / Получатель". Ячейки мигают зеленым при передаче. Красный цвет — переполнение `inbox`.
+*   **Live Message Sniffer**: Лог всех сообщений в реальном времени (как Network Tab в браузере). Можно развернуть JSON любого пакета.
+*   **Dead Letter Queue**: "Корзина" для сообщений, не нашедших адресата (нет подписчиков или агент умер). Светится желтым warning'ом.
