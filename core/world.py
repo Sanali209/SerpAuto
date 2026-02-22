@@ -82,8 +82,9 @@ class World:
             state["components"][class_name] = {}
             for entity_id, comp_instance in entity_map.items():
                 # Use Pydantic's model_dump to serialize
-                # mode='json' is CRITICAL to serialize UUIDs to strings automatically
-                state["components"][class_name][str(entity_id)] = comp_instance.model_dump(mode='json')
+                # We do NOT use mode='json' here, so UUIDs remain as objects.
+                # SceneData (Pydantic) handles serialization to JSON strings downstream.
+                state["components"][class_name][str(entity_id)] = comp_instance.model_dump()
 
         return state
 
