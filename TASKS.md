@@ -135,3 +135,17 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P2** Implement `HumanInputSystem` (Capture mouse/keyboard).
 *   [ ] **P2** Implement `EnvironmentJudgeSystem` (RL Rewards).
 *   [ ] **P3** Integrate `FastAPI` router for Production mode.
+
+---
+
+## Phase 9: Sample Project (Snake AI)
+
+### 9.1 Snake Simulation
+*   [ ] **P1** Implement `SnakeBodyComponent`, `GridPositionComponent`.
+*   [ ] **P1** Implement `SnakeLocomotionSystem` (Movement).
+*   [ ] **P1** Implement `SnakeCollisionSystem` (Rules).
+
+### 9.2 Snake Agent Interface
+*   [ ] **P2** Implement `InternalGridStateNode` (Perception).
+*   [ ] **P2** Implement `ChangeDirectionAction` and handler.
+*   [ ] **P2** Verify RL Training Loop (Gymnasium).
