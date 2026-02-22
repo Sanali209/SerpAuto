@@ -1,9 +1,12 @@
+import logging
 from core.system import System
 from core.world import World
 from core.registry import register_system
 from core.engine_v2 import Phase
 from components.core import ActionBufferComponent
 from components.internal import VelocityComponent
+
+logger = logging.getLogger(__name__)
 
 # Import custom actions
 try:
@@ -42,7 +45,7 @@ class ActionExecutionSystem(System):
                     buffer.current_action_status = "RUNNING"
 
             except Exception as e:
-                print(f"Action execution failed: {e}")
+                logger.error(f"Action execution failed: {e}")
                 buffer.queue.pop(0)
                 buffer.current_action_status = "FAILURE"
 
