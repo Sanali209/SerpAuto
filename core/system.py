@@ -1,18 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import List, Any
+from .world import World
 
-if TYPE_CHECKING:
-    from core.world import World
-
-class BaseSystem(ABC):
-    """Base class for all ECS systems."""
-
+class System(ABC):
     @abstractmethod
-    async def update(self, world: "World", dt: float):
-        """Update logic for the system.
-
-        Args:
-            world: The game world instance.
-            dt: Delta time since last frame.
-        """
+    async def update(self, world: World, dt: float):
+        """Update logic for this system. Must be implemented by subclasses."""
         pass
