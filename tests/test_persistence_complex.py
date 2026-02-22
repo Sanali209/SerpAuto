@@ -1,6 +1,5 @@
 import unittest
 import uuid
-import json
 from core.world import World
 from core.registry import COMPONENT_REGISTRY
 from components.core import MailboxComponent, Message
@@ -26,13 +25,13 @@ class TestComplexPersistence(unittest.TestCase):
 
         # This call would fail if mode='json' wasn't used in model_dump
         try:
-            json_dump = world.serialize()
+            data = world.serialize()
         except TypeError as e:
             self.fail(f"Serialization failed likely due to UUID: {e}")
 
         # Verify Deserialize works too
         new_world = World()
-        new_world.deserialize(json_dump, COMPONENT_REGISTRY)
+        new_world.deserialize(data, COMPONENT_REGISTRY)
 
         restored_mailbox = new_world.get_component(agent_a, MailboxComponent)
         self.assertIsNotNone(restored_mailbox)
