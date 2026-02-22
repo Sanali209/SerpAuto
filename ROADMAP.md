@@ -49,3 +49,11 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 *   **Milestone 6.2**: Environment Routing (`Direct Perception Bypass`).
 *   **Milestone 6.3**: MLOps Pipeline Integration (YOLO, ONNX Runtime).
 *   **Milestone 6.4**: Dataset Collection Tools (`Teacher Mode`).
+
+## Phase 7: Persistence & Deployment (DevOps)
+**Goal**: Enable saving/loading of agent brains and world states for deployment and debugging.
+
+*   **Milestone 7.1**: World State Serialization (JSON Snapshots).
+*   **Milestone 7.2**: Project Configuration (Blueprints for Pipeline/BT).
+*   **Milestone 7.3**: UI Layout Persistence (`dpg.save_init_file`).
+*   **Milestone 7.4**: Hot-Reload Logic (Pause/Resume Engine).

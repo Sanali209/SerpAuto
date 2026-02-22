@@ -107,3 +107,17 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P3** Integrate `ONNXRuntime` for `YOLONode`.
 *   [ ] **P3** Implement `DatasetLoggerSystem` (Data collection).
 *   [ ] **P3** Implement `Teacher Mode` logic.
+
+---
+
+## Phase 7: Persistence
+
+### 7.1 World Serialization
+*   [ ] **P1** Implement `World.serialize` method (JSON dump).
+*   [ ] **P1** Implement `World.deserialize` method (Hot-Reload).
+*   [ ] **P1** Implement Component Registry for dynamic loading.
+
+### 7.2 Configuration & Deployment
+*   [ ] **P2** Implement `ProjectConfig` loader (Pipeline/BT blueprints).
+*   [ ] **P3** Implement `UI Layout` saver (.ini).
+*   [ ] **P2** Implement `Engine.pause/resume` logic.

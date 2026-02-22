@@ -1,4 +1,5 @@
 import uuid
+import json
 from typing import Dict, Type, Set, List
 from .component import BaseComponent
 from .entity import Entity
@@ -11,8 +12,15 @@ class World:
         self._entities_with_component: Dict[Type[BaseComponent], Set[Entity]] = {}
         self._entities: Set[Entity] = set()
 
-    def add_entity(self) -> Entity:
-        ent = uuid.uuid4()
+    def clear(self):
+        """Removes all entities and components from the world"""
+        self._entities.clear()
+        self._components.clear()
+        self._entities_with_component.clear()
+
+    def add_entity(self, uid: uuid.UUID = None) -> Entity:
+        """Add a new entity. If uid is provided, use it (for deserialization)."""
+        ent = uid if uid else uuid.uuid4()
         self._entities.add(ent)
         return ent
 
@@ -53,3 +61,55 @@ class World:
             result_set &= self._entities_with_component.get(comp_type, set())
 
         return result_set
+
+    def serialize(self) -> str:
+        """Dump entire world state to JSON string."""
+        state = {
+            "entities": [str(e) for e in self._entities],
+            "components": {}
+        }
+
+        for comp_type, entity_map in self._components.items():
+            class_name = comp_type.__name__
+            state["components"][class_name] = {}
+            for entity_id, comp_instance in entity_map.items():
+                # Use Pydantic's model_dump to serialize
+                # mode='json' is CRITICAL to serialize UUIDs to strings automatically
+                state["components"][class_name][str(entity_id)] = comp_instance.model_dump(mode='json')
+
+        return json.dumps(state, indent=2)
+
+    def deserialize(self, json_str: str, component_registry: Dict[str, Type[BaseComponent]]):
+        """Restore world state from JSON string."""
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON string")
+
+        self.clear()
+
+        # 1. Restore Entities
+        for entity_str in data.get("entities", []):
+            self.add_entity(uid=uuid.UUID(entity_str))
+
+        # 2. Restore Components
+        components_data = data.get("components", {})
+        for class_name, entity_map in components_data.items():
+            if class_name not in component_registry:
+                print(f"Warning: Component class '{class_name}' not found in registry. Skipping.")
+                continue
+
+            comp_class = component_registry[class_name]
+
+            for entity_id_str, comp_data in entity_map.items():
+                try:
+                    entity_id = uuid.UUID(entity_id_str)
+                    if entity_id not in self._entities:
+                        # Should have been created in step 1, but safe to add if missing
+                        self.add_entity(uid=entity_id)
+
+                    # Use Pydantic's model_validate to reconstruct
+                    comp_instance = comp_class.model_validate(comp_data)
+                    self.add_component(entity_id, comp_instance)
+                except Exception as e:
+                    print(f"Error deserializing {class_name} for {entity_id_str}: {e}")
