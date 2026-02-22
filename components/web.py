@@ -1,4 +1,5 @@
 from typing import Dict, Any
+from pydantic import Field
 from core.component import BaseComponent
 from core.registry import register_component
 
@@ -6,7 +7,7 @@ from core.registry import register_component
 class WebSessionComponent(BaseComponent):
     """Stores browser state for scraper"""
     current_url: str = ""
-    cookies: Dict[str, str] = {}
+    cookies: Dict[str, str] = Field(default_factory=dict, exclude=True)
     user_agent: str = ""
 
 @register_component()
