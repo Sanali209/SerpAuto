@@ -149,3 +149,20 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P2** Implement `InternalGridStateNode` (Perception).
 *   [ ] **P2** Implement `ChangeDirectionAction` and handler.
 *   [ ] **P2** Verify RL Training Loop (Gymnasium).
+
+---
+
+## Phase 10: Scene Management
+
+### 10.1 Registry Architecture
+*   [ ] **P1** Implement `ComponentRegistry` & `SystemRegistry`.
+*   [ ] **P1** Implement `@register_component` and `@register_system` decorators.
+*   [ ] **P1** Refactor all existing Components/Systems to use decorators.
+
+### 10.2 Scene Loader
+*   [ ] **P1** Implement `SceneManager.save/load`.
+*   [ ] **P2** Implement `Scene` data structure (JSON schema).
+
+### 10.3 CLI & Entry Point
+*   [ ] **P1** Create `main.py` with `argparse`.
+*   [ ] **P1** Implement dynamic system instantiation from Scene config.

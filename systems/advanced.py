@@ -1,8 +1,11 @@
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.spatial import TransformComponent
 from components.internal import VelocityComponent, ColliderComponent, RewardComponent
 
+@register_system(phase=Phase.INTERNAL_PHYSICS)
 class InternalPhysicsSystem(System):
     """
     Simulates simple physics for internal entities (Position += Velocity * dt).
@@ -20,6 +23,7 @@ class InternalPhysicsSystem(System):
             # Placeholder for collision check (ColliderComponent)
             # if world.has_component(entity, ColliderComponent): ...
 
+@register_system(phase=Phase.TELEMETRY)
 class DatasetLoggerSystem(System):
     """
     Logs Perception + Action pairs for Imitation Learning (Teacher Mode).

@@ -5,8 +5,11 @@ import uuid
 from core.system import System
 from core.world import World
 from core.entity import Entity
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.core import MailboxComponent, Message
 
+@register_system(phase=Phase.MAIL_ROUTING)
 class MessageRouterSystem(System):
     """
     Orchestrates message passing between agents (Pub/Sub + Direct).

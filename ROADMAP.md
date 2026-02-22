@@ -65,3 +65,11 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 *   **Milestone 8.2**: Production Mode (Headless + Telemetry + FastAPI).
 *   **Milestone 8.3**: Teacher Mode (Human Input + Dataset Logging).
 *   **Milestone 8.4**: Gymnasium Mode (Internal Physics + Rewards + Uncapped Speed).
+
+## Phase 10: Scene Management & Dynamic Loading
+**Goal**: Create a Unity-like experience for managing scenes, systems, and entities dynamically.
+
+*   **Milestone 10.1**: Global Registries with Decorators (`@register_component/system`).
+*   **Milestone 10.2**: Scene File Format & Manager (Save/Load Scene).
+*   **Milestone 10.3**: CLI Entry Point (`main.py`) for Headless loading.
+*   **Milestone 10.4**: Integration with `SerpentineEngineV2` (Dynamic System Injection).

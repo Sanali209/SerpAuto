@@ -1,5 +1,7 @@
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.core import ActionBufferComponent
 from components.internal import VelocityComponent
 
@@ -9,6 +11,7 @@ try:
 except ImportError:
     ChangeDirectionAction = None
 
+@register_system(phase=Phase.EXECUTION)
 class ActionExecutionSystem(System):
     """
     Processes the ActionBufferComponent and executes actions sequentially.

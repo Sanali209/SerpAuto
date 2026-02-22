@@ -1,7 +1,10 @@
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.internal import RewardComponent
 
+@register_system(phase=Phase.INTERNAL_PHYSICS)
 class EnvironmentJudgeSystem(System):
     """
     Evaluates agent actions and assigns rewards.

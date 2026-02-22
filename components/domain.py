@@ -1,6 +1,8 @@
 from typing import List, Dict
 from core.component import BaseComponent
+from core.registry import register_component
 
+@register_component()
 class StatsComponent(BaseComponent):
     """Vital statistics"""
     health: float = 100.0
@@ -8,6 +10,7 @@ class StatsComponent(BaseComponent):
     stamina: float = 100.0
     status_effects: List[str] = [] # ["poisoned", "encumbered"]
 
+@register_component()
 class InventoryComponent(BaseComponent):
     """Resource management (loot, parts)"""
     capacity: int = 20

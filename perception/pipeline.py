@@ -1,7 +1,10 @@
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.core import PerceptionComponent
 
+@register_system(phase=Phase.PERCEPTION)
 class PerceptionPipelineSystem(System):
     """
     Processes raw input data (from SensoryInputSystem) through a DAG of filter nodes

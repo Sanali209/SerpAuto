@@ -1,12 +1,15 @@
 import random
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.snake import GridPositionComponent, SnakeBodyComponent, SnakeColliderComponent
 from components.internal import VelocityComponent, RewardComponent
 
 GRID_WIDTH = 10
 GRID_HEIGHT = 10
 
+@register_system(phase=Phase.INTERNAL_PHYSICS)
 class SnakeLocomotionSystem(System):
     """
     Moves the snake head and updates the body segments.
@@ -33,6 +36,7 @@ class SnakeLocomotionSystem(System):
             pos.x += int(vel.vx)
             pos.y += int(vel.vy)
 
+@register_system(phase=Phase.INTERNAL_PHYSICS)
 class SnakeCollisionSystem(System):
     """
     Handles rules: Apple -> Grow, Wall/Body -> Die/Reset.

@@ -2,7 +2,9 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Any
 import uuid
 from core.component import BaseComponent
+from core.registry import register_component
 
+@register_component()
 class AgentMetaComponent(BaseComponent):
     """Agent identity: Name, role, status"""
     name: str = "Agent_01"
@@ -16,28 +18,33 @@ class Message(BaseModel):
     topic: str # e.g.: "price_drop", "enemy_spotted"
     payload: Dict[str, Any] # The data itself (JSON)
 
+@register_component()
 class MailboxComponent(BaseComponent):
     """Mailbox for Pub/Sub architecture"""
     inbox: List[Message] = Field(default_factory=list)
     outbox: List[Message] = Field(default_factory=list)
     subscriptions: List[str] = Field(default_factory=list) # Topics the agent is subscribed to
 
+@register_component()
 class MemoryComponent(BaseComponent):
     """Working and episodic memory (Blackboard)"""
     blackboard: Dict[str, Any] = Field(default_factory=dict)
     history: List[str] = Field(default_factory=list) # Log of last actions for LLM (episodic_log)
 
+@register_component()
 class ActionBufferComponent(BaseComponent):
     """Execution queue"""
     queue: List[Any] = Field(default_factory=list) # List of BaseAction objects
     current_action_status: str = "IDLE"
 
+@register_component()
 class PerceptionComponent(BaseComponent):
     """Ephemeral snapshot of the world (updated every tick)"""
     visible_entities: List[dict] = Field(default_factory=list) # What we see right now
     raw_context: Dict[str, Any] = Field(default_factory=dict) # Parsed JSON goes here
     raw_frame_id: str | None = None
 
+@register_component()
 class BrainComponent(BaseComponent):
     status: str = "IDLE" # IDLE, RUNNING_BT, WAITING_LLM
     context: Dict[str, Any] = Field(default_factory=dict)

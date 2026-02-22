@@ -1,11 +1,14 @@
 from typing import List, Literal, Tuple
 from core.component import BaseComponent
+from core.registry import register_component
 
+@register_component()
 class GridPositionComponent(BaseComponent):
     """Position on the 2D grid"""
     x: int
     y: int
 
+@register_component()
 class SnakeBodyComponent(BaseComponent):
     """Tail segments queue"""
     body_segments: List[Tuple[int, int]] = []
@@ -19,6 +22,7 @@ class SnakeBodyComponent(BaseComponent):
 # But components/internal.py defined it with shape/size.
 # Let's make a specific component for Snake Game Logic metadata to avoid conflicts.
 
+@register_component()
 class SnakeColliderComponent(BaseComponent):
     """Tag for collision logic in Snake"""
     type: Literal["head", "body", "apple", "wall"]

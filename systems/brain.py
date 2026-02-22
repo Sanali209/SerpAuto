@@ -1,7 +1,10 @@
 from core.system import System
 from core.world import World
+from core.registry import register_system
+from core.engine_v2 import Phase
 from components.core import BrainComponent
 
+@register_system(phase=Phase.COGNITION)
 class AI_BrainSystem(System):
     """
     Executes the Behavior Tree for each agent.
