@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
 from enum import Enum, auto
 
 from core.world import World
@@ -15,15 +15,34 @@ class Phase(Enum):
     EXECUTION = auto()
     TELEMETRY = auto()
 
+class EngineMode(Enum):
+    ARCHITECT = auto()   # GUI, Debug, Slow
+    PRODUCTION = auto()  # Headless, Fast, Telemetry
+    TEACHER = auto()     # Human Input, No Brain, Logging
+    GYMNASIUM = auto()   # Internal Physics, Rewards, No Sleep
+
 class SerpentineEngineV2(SerpentineEngine):
     """
-    Enhanced engine loop with strict phase ordering (v2.0).
+    Enhanced engine loop with strict phase ordering (v2.0) and Operation Modes.
     """
-    def __init__(self):
+    def __init__(self, mode: EngineMode = EngineMode.ARCHITECT):
         super().__init__()
+        self.mode = mode
         self.systems_by_phase: Dict[Phase, List[System]] = {
             phase: [] for phase in Phase
         }
+        self.configure_for_mode()
+
+    def configure_for_mode(self):
+        """Sets internal flags based on the selected mode."""
+        if self.mode == EngineMode.GYMNASIUM:
+            self.tick_rate = 0 # Uncapped
+        elif self.mode == EngineMode.PRODUCTION:
+            self.tick_rate = 20 # Efficient
+        elif self.mode == EngineMode.TEACHER:
+            self.tick_rate = 60 # Real-time
+        else: # ARCHITECT
+            self.tick_rate = 60
 
     def add_system(self, system: System, phase: Phase = Phase.EXECUTION):
         """Register a system to a specific execution phase."""
@@ -56,6 +75,12 @@ class SerpentineEngineV2(SerpentineEngine):
                     await system.update(self.world, dt)
 
             # Artificial delay (Sleep)
-            elapsed = time.perf_counter() - current_time
-            sleep_time = max(0, (1.0 / self.tick_rate) - elapsed)
-            await asyncio.sleep(sleep_time)
+            # In Gymnasium Mode, we skip sleep to maximize TPS
+            if self.mode != EngineMode.GYMNASIUM and self.tick_rate > 0:
+                elapsed = time.perf_counter() - current_time
+                sleep_time = max(0, (1.0 / self.tick_rate) - elapsed)
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+            else:
+                # Still yield control to event loop to allow async tasks to progress
+                await asyncio.sleep(0)

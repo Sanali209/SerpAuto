@@ -119,6 +119,34 @@ Behavior Tree не знает, какая модель подключена. У�
     *   Таймауты `asyncio.sleep` отключаются для турбо-скорости (Fast-Forward).
     *   Оценка действий происходит через добавленный `RewardComponent`.
 
+## 14. Режимы Работы (Operation Modes)
+
+Архитектура ECS позволяет кардинально менять поведение движка, просто изменяя состав активных Систем и параметры цикла времени.
+
+### 14.1. Mode: Architect & Debug (Режим Разработчика)
+Визуальное программирование и отладка.
+*   **Системы**: Standard + `GUIDebugSystem`.
+*   **Время**: Ограничено (20-60 TPS). Доступны Pause/Step.
+*   **Фичи**: Hot-Reloading воркспейсов, "God Mode" (редактирование памяти), Zero-Copy Rendering (OpenCV -> Texture).
+
+### 14.2. Mode: Production / Headless (Боевой серверный режим)
+Фоновая работа без GUI. Идеально для Docker/Koyeb.
+*   **Системы**: Standard + `TelemetrySystem`. `GUIDebugSystem` отключена.
+*   **Время**: Строгий лимит (10-20 TPS) для экономии CPU.
+*   **Фичи**: REST API (FastAPI) для внешнего управления, метрики (Prometheus), автономный Fallback при сбоях LLM.
+
+### 14.3. Mode: Teacher (Сбор датасетов)
+Студия захвата действий для Imitation Learning.
+*   **Системы**: `AI_BrainSystem` **отключена**. Включены `HumanInputSystem` и `DatasetLoggerSystem`.
+*   **Время**: Real-time (60 TPS).
+*   **Фичи**: Оператор управляет агентом через окно восприятия. Движок пишет пары `[Perception, Action]` в HDF5/JSONL для обучения моделей.
+
+### 14.4. Mode: Gymnasium (RL Спортзал)
+Симуляция для Reinforcement Learning (PPO, DQN).
+*   **Системы**: External-парсеров нет. Включены `InternalPhysicsSystem` и `EnvironmentJudgeSystem` (начисление наград).
+*   **Время**: Fast-Forward (Uncapped). `asyncio.sleep` отключен для макс. скорости.
+*   **Фичи**: Стандартный API `env.reset()`, `env.step()`. Параллельное обучение (векторизация) 100+ агентов в одной памяти.
+
 ## 9. Система Персистентности (Persistence System)
 
 Архитектура ECS + Pydantic позволяет полностью разделить логику и данные, делая сериализацию тривиальной. Персистентность делится на три уровня:

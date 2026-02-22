@@ -121,3 +121,17 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P2** Implement `ProjectConfig` loader (Pipeline/BT blueprints).
 *   [ ] **P3** Implement `UI Layout` saver (.ini).
 *   [ ] **P2** Implement `Engine.pause/resume` logic.
+
+---
+
+## Phase 8: Operation Modes
+
+### 8.1 Mode Switching Logic
+*   [ ] **P1** Implement `EngineMode` enum (ARCHITECT, PRODUCTION, TEACHER, GYMNASIUM).
+*   [ ] **P1** Update `SerpentineEngineV2` to configure systems/tick-rate based on mode.
+
+### 8.2 Mode-Specific Systems
+*   [ ] **P2** Implement `TelemetrySystem` (Log metrics).
+*   [ ] **P2** Implement `HumanInputSystem` (Capture mouse/keyboard).
+*   [ ] **P2** Implement `EnvironmentJudgeSystem` (RL Rewards).
+*   [ ] **P3** Integrate `FastAPI` router for Production mode.
