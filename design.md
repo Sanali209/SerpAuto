@@ -1,109 +1,214 @@
-# Когнитивный гибридный движок "Serpentine"
+# Детальная архитектура ядра Serpentine
+
+Этот документ описывает, как абстрактные идеи превращаются в конкретные классы, интерфейсы и потоки данных. Архитектура строится вокруг строгой типизации (Pydantic), асинхронности (asyncio) и неблокирующего ввода-вывода.
 
 ## 1. Архитектурная философия
 
-Serpentine — это асинхронный, tick-based движок, построенный на паттерне Entity-Component-System (ECS). Он предназначен для создания автономных агентов, способных оперировать в сложных цифровых средах (веб-интерфейсы, игры, десктоп).
-
-Ключевая особенность — бесшовная гибридизация: агент может управляться жесткими скриптами (Behavior Trees), удаленными LLM/ML моделями или человеком-оператором в рамках единого непрерывного цикла времени.
+Serpentine — это асинхронный, tick-based движок, построенный на паттерне Entity-Component-System (ECS). Он предназначен для создания автономных агентов, способных оперировать в сложных цифровых средах.
 
 ## 2. Структура ECS (Entity-Component-System)
 
-Все данные изолированы от логики. Состояние мира (World State) хранится строго в компонентах.
+Вся память и состояние системы лежат в объекте `World`. Никакая логика не хранится в сущностях — это просто идентификаторы.
 
-### 2.1. World (Контекст)
-Корневой класс, хранящий реестр всех сущностей и систем. Поддерживает сериализацию всего состояния (например, в SQLite для сохранения сессий или сбора датасетов).
+### 2.1. Базовые структуры
 
-### 2.2. Entities (Сущности)
-Уникальные идентификаторы (UUID), не содержащие логики.
-Примеры сущностей: Агент, Враг, Кнопка интерфейса, Точка интереса (POI).
+```python
+import uuid
+from pydantic import BaseModel, Field
+from typing import Dict, List, Type, Any
 
-### 2.3. Components (Компоненты)
-Data-классы (на базе Pydantic BaseModel для авто-валидации и генерации GUI).
-* **PositionComponent**: x, y, z (или grid_x, grid_y).
-* **PerceptionComponent**: Хранит результат работы визуального пайплайна (JSON с распознанными объектами, текстом, сеткой проходимости).
-* **BrainComponent**: Хранит текущий статус мышления (например, IDLE, RUNNING_BT, WAITING_LLM) и контекст памяти.
-* **ActionBufferComponent**: Очередь FIFO, содержащая объекты классов унаследованных от BaseAction.
+# 1. Сущность - просто ID
+Entity = uuid.UUID
 
-### 2.4. Systems (Системы)
-Классы, реализующие метод `update(world: World, dt: float)`. Системы обрабатывают компоненты порциями на каждом тике.
+# 2. Компоненты - строго данные (Pydantic дает нам сериализацию и авто-GUI)
+class BaseComponent(BaseModel):
+    pass
 
-## 3. Главный цикл (The Game Loop)
+class PositionComponent(BaseComponent):
+    x: float = 0.0
+    y: float = 0.0
 
-Движок работает непрерывно. Используется `asyncio` для неблокирующей работы с сетью и моделями.
+class PerceptionComponent(BaseComponent):
+    visible_entities: List[dict] = Field(default_factory=list)
+    passability_grid: List[List[int]] = Field(default_factory=list)
+    raw_frame_id: str | None = None # Ссылка на кадр в памяти для дебага
 
-### Фазы одного тика (Tick Phases):
-* **Time Management**: Расчет `dt` (Delta Time). Ограничение FPS (например, 20 тиков в секунду) через `await asyncio.sleep()`. В режиме "Спортзала" (Gym) ограничение снимается.
-* **Perception Phase (Сбор данных)**:
-    * Захват кадра / DOM / API.
-    * Синхронный прогон через цепочку фильтров (Vision Pipeline).
-    * Обновление `PerceptionComponent` у Агента.
-* **Cognition Phase (Принятие решений)**:
-    * Выполнение одного шага Behavior Tree (BT).
-    * Если BT требует ответа от нейросети (например, CLIP для классификации или LLM для стратегии), создается неблокирующая `asyncio.Task`, которая обращается к внешнему микросервису (например, развернутому через Docker на Koyeb). Агент переходит в состояние `WAITING`.
-* **Execution Phase (Действия)**:
-    * Система `ActionExecutionSystem` проверяет буфер действий.
-    * Выполняет верхнее действие (эмуляция мыши, клавиатуры, API-запрос).
-    * Записывает результат выполнения (Success/Failure) обратно в стейт агента.
-* **Telemetry/Debug Phase**: Отправка метрик и кадров в шину сообщений для отрисовки в DearPyGui.
+class ActionBufferComponent(BaseComponent):
+    queue: List[Any] = Field(default_factory=list) # Очередь BaseAction
+    current_action_status: str = "IDLE"
 
-## 4. Пайплайн Восприятия (Perception Pipeline)
+class BrainComponent(BaseComponent):
+    status: str = "IDLE" # IDLE, RUNNING_BT, WAITING_LLM
+    context: Dict[str, Any] = Field(default_factory=dict)
+```
 
-Конвейер обработки входящих данных. Состоит из изолированных узлов (Nodes), каждый из которых принимает кадр/данные и передает дальше, параллельно обновляя глобальный стейт.
+### 2.2. Мир (Registry)
 
-### 4.1. Архитектура Узла (Node)
-Каждый узел имеет:
-* `config`: Pydantic-схема настроек (автоматически биндится к ползункам в DearPyGui).
-* `process(frame, local_state)`: Метод трансформации.
+```python
+class World:
+    def __init__(self):
+        # Структура: {ComponentClass: {EntityID: ComponentInstance}}
+        self._components: Dict[Type[BaseComponent], Dict[Entity, BaseComponent]] = {}
+        self._entities: set[Entity] = set()
 
-### 4.2. Базовые встроенные фильтры
-* **Трансформации**: Crop, Resize, Grayscale, Threshold (OpenCV).
-* **Анализ**:
-    * `TemplateMatcherNode`: Быстрый поиск спрайтов (например, иконок лута или элементов UI из вселенной вроде Warhammer 40k).
-    * `OCRNode`: Извлечение текста.
-* **Пространственные**:
-    * `IsometricGridMapperNode`: Перевод экранных координат (x, y) в логическую сетку матрицы (row, col).
-* **Семантические**:
-    * `CLIPEmbedderNode`: Отправка кропа изображения в легковесную ML-модель для получения семантического вектора.
+    def add_entity(self) -> Entity:
+        ent = uuid.uuid4()
+        self._entities.add(ent)
+        return ent
 
-## 5. Гибридный Мозг (Decision Core)
+    def add_component(self, entity: Entity, component: BaseComponent):
+        comp_type = type(component)
+        if comp_type not in self._components:
+            self._components[comp_type] = {}
+        self._components[comp_type][entity] = component
 
-### 5.1. Behavior Tree (BT)
-Основа детерминированной логики. Дерево состоит из узлов `Selector` (поиск первого успешного), `Sequence` (выполнение строго по порядку) и `Condition` (проверка данных из `PerceptionComponent`).
+    def get_component(self, entity: Entity, comp_type: Type[BaseComponent]):
+        return self._components.get(comp_type, {}).get(entity)
+```
 
-### 5.2. Асинхронный ML-Мост
-Когда стандартный скрипт не справляется, управление передается узлу `ModelInferenceNode`.
-* Узел сериализует `PerceptionComponent` (оставляя только релевантные данные, без тяжелых массивов пикселей).
-* Отправляет JSON в микросервис (FastAPI) с моделью.
-* Возвращает `RUNNING` в дерево, пока запрос летит.
-* Получив ответ, десериализует его в `BaseAction` и кладет в `ActionBufferComponent`.
+**Почему так:** `World` легко сериализовать целиком в JSON/SQLite на любом тике. Это дает возможность сохранять сессии, делать "перемотку времени" в дебагере и собирать датасеты для Imitation Learning.
 
-## 6. Базовые Действия (Action Primitives)
+## 3. Главный асинхронный цикл (The Engine Loop)
 
-Любое воздействие на среду строго типизировано.
-Каждое действие имеет методы: `execute()`, `check_status()`, `abort()`.
+Главный цикл не должен блокироваться, даже если нейросеть думает 5 секунд или кадр обрабатывается тяжелым фильтром OpenCV.
 
-* **Физические**: `ClickAction`, `HoldAction`, `DragAndDropAction`.
-* **Клавиатурные**: `KeyPressAction`, `TypeTextAction`.
-* **Когнитивные**: `WaitUntilVisibleAction(target_id, timeout)`.
-* **Навигационные**: `PathfindAction(target_grid_x, target_grid_y)` — вычисляет маршрут по текущей `passability_grid` и генерирует серию `ClickAction`.
+### Архитектура цикла
 
-## 7. Режимы работы (Operation Modes)
+```python
+import asyncio
+import time
 
-Модульная архитектура позволяет движку мгновенно менять назначение:
+class SerpentineEngine:
+    def __init__(self):
+        self.world = World()
+        self.systems = [] # Список всех System (Perception, Brain, Action)
+        self.is_running = False
+        self.tick_rate = 20 # Ограничение TPS для Production/Debug
 
-* **Production (Headless)**:
-    * Запуск в Docker-контейнере. GUI отключен. Максимальный TPS (Ticks Per Second). Оркестрация через внешние вызовы (API).
-* **Debug / Architect (DearPyGui)**:
-    * Подключение `GUIDebugSystem`.
-    * Доступен нодовый редактор пайплайна восприятия, просмотр дерева сущностей и визуализация сетки проходимости поверх сырого кадра.
-* **Teacher (Imitation Learning)**:
-    * Подключение `HumanInputSystem` (перехват управления мышью оператором) и `DataLoggerSystem`.
-    * На каждом тике пара (Perception_JSON, User_Action) пишется в локальную БД для последующего обучения.
-* **Gymnasium (RL Mode)**:
-    * Обертка над движком, предоставляющая методы `reset()` и `step(action)`.
-    * Интеграция с компонентом `RewardComponent` для подсчета функции полезности.
+    async def run(self):
+        self.is_running = True
+        last_time = time.perf_counter()
 
-## 8. Директории проекта (Предлагаемая структура)
+        while self.is_running:
+            current_time = time.perf_counter()
+            dt = current_time - last_time
+            last_time = current_time
+
+            # 1. Выполнение всех систем по очереди
+            for system in self.systems:
+                await system.update(self.world, dt)
+
+            # 2. Искусственная задержка (Сон)
+            # В режиме Gymnasium (RL Gym) мы игнорируем sleep для макс. скорости
+            elapsed = time.perf_counter() - current_time
+            sleep_time = max(0, (1.0 / self.tick_rate) - elapsed)
+            await asyncio.sleep(sleep_time)
+```
+
+## 4. Архитектура Пайплайна Восприятия (Perception System)
+
+Сенсорные данные (скриншоты, DOM) проходят через направленный ациклический граф (DAG) фильтров.
+
+**Поток данных:**
+* `SensoryInputSystem` делает захват (например, Playwright берет скриншот).
+* `PerceptionPipelineSystem` прогоняет кадр через узлы.
+* Результат записывается в `PerceptionComponent` агента.
+
+### Структура узла (Node)
+
+Каждый фильтр имеет свою конфигурацию на Pydantic. DearPyGui будет динамически читать эту конфигурацию и строить интерфейс (ползунки, чекбоксы).
+
+```python
+class CannyFilterConfig(BaseModel):
+    threshold_1: int = Field(100, ge=0, le=255)
+    threshold_2: int = Field(200, ge=0, le=255)
+
+class CannyFilterNode:
+    def __init__(self):
+        self.config = CannyFilterConfig()
+
+    def process(self, frame, context):
+        # Применяем OpenCV
+        # edges = cv2.Canny(frame, self.config.threshold_1, self.config.threshold_2)
+
+        # Обновляем контекст (передаем дальше по цепочке)
+        # context['edges'] = edges
+        return frame, context # Placeholder
+```
+
+## 5. Гибридный Мозг (Decision System & Behavior Trees)
+
+Здесь сходятся скрипты и нейросети. Дерево поведения опрашивается каждый тик.
+Узлы дерева возвращают один из трех статусов: `SUCCESS`, `FAILURE`, `RUNNING`.
+Статус `RUNNING` — ключевой для интеграции медленных ML-моделей.
+
+### Как работает узел вызова модели (LLM/CLIP)
+
+```python
+class LLMInferenceNode: # (BehaviorTreeNode)
+    def __init__(self):
+        self.task = None
+
+    async def tick(self, world: World, agent_id: Entity):
+        # 1. Если таска уже запущена, проверяем её статус
+        if self.task is not None:
+            if self.task.done():
+                result = self.task.result()
+                self.task = None
+                # Кладем результат в ActionBuffer агента!
+                self._push_action_to_buffer(world, agent_id, result)
+                return "SUCCESS"
+            else:
+                # Модель еще думает, цикл идет дальше, агент ждет
+                return "RUNNING"
+
+        # 2. Таски нет - запускаем новую
+        perception = world.get_component(agent_id, PerceptionComponent)
+        # prompt = self._build_prompt_from_perception(perception)
+
+        # Создаем неблокирующую задачу (вызов API Koyeb/HuggingFace)
+        # self.task = asyncio.create_task(self._call_llm_api(prompt))
+
+        return "RUNNING" # Возвращаем RUNNING в этот тик
+```
+
+## 6. Исполнение Действий (Action Execution System)
+
+Это финальное звено. Система берет экшены из буфера и транслирует их в реальный мир.
+Используется паттерн Command.
+
+```python
+class ActionExecutionSystem: # (BaseSystem)
+    async def update(self, world: World, dt: float):
+        # Ищем всех агентов с буфером действий
+        # Note: In real implementation, iterate correctly over entities with component
+        # for entity, buffer in world.get_components(ActionBufferComponent):
+        pass
+
+            # if not buffer.queue:
+            #     continue
+
+            # current_action = buffer.queue[0]
+
+            # Пробуем выполнить
+            # status = await current_action.execute()
+
+            # if status in ["SUCCESS", "FAILURE"]:
+            #     buffer.queue.pop(0) # Убираем из очереди
+            #     buffer.current_action_status = status
+            # elif status == "RUNNING":
+            #     # Например, экшен "Идти в точку X" может занять несколько тиков
+            #     buffer.current_action_status = "RUNNING"
+```
+
+## 7. Модульность: GUI и ML Спортзал
+
+Благодаря такой архитектуре, добавление новых режимов вообще не требует изменения ядра.
+
+* **GUI (DearPyGui)**: Вы создаете `DearPyGuiSystem`. В методе `update()` она просто читает `World`, берет `PerceptionComponent`, берет схему из узлов фильтров и вызывает команды отрисовки DPG. Она работает параллельно с логикой.
+* **Спортзал (Gymnasium)**: Вы оборачиваешь `SerpentineEngine` в класс `Gym`. Метод `gym.step(action)` кладет action напрямую в `ActionBufferComponent` агента, вручную вызывает `engine.tick()` один раз и возвращает измененный `PerceptionComponent` и `RewardComponent` обратно в алгоритм обучения.
+
+## 8. Директории проекта
 
 ```
 serpentine_engine/
