@@ -244,6 +244,63 @@ class CannyFilterNode:
         return frame, context # Placeholder
 ```
 
+### MLOps Pipeline для Computer Vision
+
+Для задач обнаружения объектов (кнопок, юнитов, деталей) движок интегрируется с пайплайном MLOps на базе YOLO.
+
+#### 1. Сбор и Разметка (Annotation)
+*   **Инструменты**:
+    *   **Label Studio**: Для локальной разметки скриншотов, собранных `DatasetLoggerSystem`.
+    *   **Roboflow**: Облачное решение с авто-аугментацией (повороты, шум).
+    *   **CVAT**: Для разметки видеопотока.
+*   **Процесс**: Движок сохраняет кадры -> Оператор размечает -> Экспорт в формат YOLO.
+
+#### 2. Обучение (Training)
+Использование библиотеки **Ultralytics** (YOLOv8/v11) для стандартизированного обучения.
+
+```python
+from ultralytics import YOLO
+model = YOLO('yolov8n.pt')
+results = model.train(data='dataset.yaml', epochs=50, imgsz=640)
+```
+
+#### 3. Трекинг Экспериментов (Experiment Tracking)
+Интеграция с **Weights & Biases (W&B)** для мониторинга метрик (Loss, mAP) и визуализации предсказаний в реальном времени.
+
+#### 4. Экспорт и Инференс (Export & Inference)
+Для оптимизации производительности модели экспортируются в **ONNX** и запускаются через **ONNX Runtime** (C++ backend).
+
+**YOLO Detector Node в DPG:**
+
+```python
+import onnxruntime as ort
+from pydantic import BaseModel
+
+class YOLOConfig(BaseModel):
+    model_path: str = "models/my_custom_ui_detector.onnx"
+    confidence_threshold: float = 0.65 # Ползунок в DPG
+
+class YOLONode:
+    def __init__(self):
+        self.config = YOLOConfig()
+        # Инициализируем сессию один раз при старте
+        self.session = ort.InferenceSession(self.config.model_path)
+
+    def process(self, frame_in, context):
+        # 1. Подготавливаем кадр (ресайз, нормализация)
+        tensor = self.preprocess(frame_in)
+
+        # 2. Мгновенный прогон через ONNX Runtime
+        predictions = self.session.run(None, {self.session.get_inputs()[0].name: tensor})
+
+        # 3. Отсекаем мусор по confidence_threshold и парсим координаты
+        bounding_boxes = self.postprocess(predictions, self.config.confidence_threshold)
+
+        # 4. Кладем в контекст для Behavior Tree
+        context['detected_entities'] = bounding_boxes
+        return frame_in, context
+```
+
 ## 7. Гибридный Мозг (Decision System & Behavior Trees)
 
 Здесь сходятся скрипты и нейросети. Дерево поведения опрашивается каждый тик.
