@@ -33,6 +33,17 @@ class BaseComponent(BaseModel):
 Эти компоненты есть у любого Агента, независимо от задачи.
 
 ```python
+class AgentMetaComponent(BaseComponent):
+    """Паспорт агента: Имя, роль, статус"""
+    name: str = "Agent_01"
+    role: str = "Scraper" # Parser, Warrior, Analyst
+    status: str = "IDLE" # ACTIVE, ERROR, WAITING
+
+class CommunicationComponent(BaseComponent):
+    """Рация: Система обмена сообщениями"""
+    inbox: List[Dict[str, Any]] = Field(default_factory=list)
+    outbox: List[Dict[str, Any]] = Field(default_factory=list)
+
 class MemoryComponent(BaseComponent):
     """Рабочая и эпизодическая память (Blackboard)"""
     blackboard: Dict[str, Any] = Field(default_factory=dict)
@@ -746,3 +757,66 @@ serpentine_engine/
 ├── tools/              # DearPyGui интерфейсы, авто-генерация GUI из Pydantic
 └── envs/               # Обертки для Gymnasium и сбора датасетов
 ```
+
+## 12. Multi-Agent System (MAS) Architecture
+
+Переход к многоагентной системе (MAS) — это естественная эволюция ECS. В нашей архитектуре добавление тысячного агента ничем не отличается от добавления первого.
+
+### 12.1. Философия Роя (Swarm Philosophy)
+
+Когда у вас работает "рой" агентов (один парсит, второй переводит, третий управляет), подход меняется:
+1.  **Децентрализация**: Агенты автономны, но координируются.
+2.  **Специализация**: Агенты имеют роли (Scraper, Trader, Analyst).
+3.  **Асинхронное общение**: Агенты не блокируют друг друга.
+
+### 12.2. Коммуникация (Message Broker Pattern)
+
+Агенты **никогда** не лезут в чужую память (`MemoryComponent`) напрямую. Это нарушает инкапсуляцию и создает Race Conditions. Вместо этого используется **CommunicationComponent**.
+
+**Сценарий:**
+1.  **Агент А (Разведчик)** нашел цель. Он кладет сообщение `{"type": "target_found", "coords": [10, 20]}` в свой `outbox`.
+2.  **SwarmSystem (Оркестратор)** забирает сообщение и маршрутизирует его.
+3.  **Агент Б (Штурмовик)** получает сообщение в свой `inbox` и реагирует.
+
+### 12.3. SwarmSystem
+
+Новая система, которая работает каждый тик:
+*   Считывает `outbox` всех агентов.
+*   Фильтрует и маршрутизирует сообщения (Broadcast или Direct).
+*   Кладет сообщения в `inbox` адресатов.
+
+## 13. UI Evolution: Swarm Control Center (God Mode)
+
+Когда агентов становится много, интерфейс DearPyGui должен превратиться из "вида от первого лица" в "пульт диспетчера".
+
+### 13.1. Многооконность в DearPyGui
+
+*   **Один Viewport (Окно ОС)**: DPG создает одно главное окно.
+*   **Docking Space**: Внутри него можно создавать сотни плавающих окон (`dpg.add_window()`).
+*   **Мультимониторность**: Viewport делается Borderless и растягивается на все экраны, а панели раскидываются через систему докинга.
+
+### 13.2. Global Roster (Список Роя)
+
+Вместо дерева сущностей появляется таблица мониторинга в реальном времени:
+*   🟢 **Agent_01 [Scraper]** | Status: Running | Task: Wait LLM | CPU: 2ms
+*   🟡 **Agent_02 [Trader]** | Status: Idle | Task: None | CPU: 0ms
+*   🔴 **Agent_03 [GameBot]**| Status: ERROR | Task: Pathfinding | CPU: -
+
+### 13.3. Contextual Inspector (Контекстный фокус)
+
+UI реагирует на выбор агента в списке.
+*   При клике на **Agent_01**, все панели (Behavior Tree, Action Buffer, Blackboard) мгновенно переключаются на отображение данных этого агента.
+*   Это реализуется через глобальный стейт GUI: `selected_entity_id`.
+
+### 13.4. Матрица Восприятия (Security Camera View)
+
+Центральный экран Perception View получает режимы:
+*   **Focus Mode**: Стрим с "глаз" только выбранного агента.
+*   **Grid Mode (CCTV)**: Сетка (2x2, 4x4), показывающая экраны нескольких агентов одновременно.
+
+### 13.5. Визуализатор Сети (Network Graph)
+
+Граф связей (Node Editor), где каждый агент — это нода.
+*   Визуализация потоков данных между агентами.
+*   Светящиеся импульсы на связях при передаче сообщений.
+*   Помогает отлаживать Deadlocks (взаимные блокировки).
