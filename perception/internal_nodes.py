@@ -1,51 +1,60 @@
+from typing import Any, Dict, List
 import numpy as np
-from perception.nodes import PerceptionNode
-from components.snake import GridPositionComponent, SnakeBodyComponent, SnakeColliderComponent
+import uuid
+from core.component import BaseComponent
+from components.spatial import TransformComponent
+from core.registry import register_component
 
-class InternalGridStateNode(PerceptionNode):
-    """
-    Constructs a 1D observation vector from the internal ECS grid state.
-    Used for RL agents bypassing CV pipelines.
-    """
-    def __init__(self, width: int = 10, height: int = 10):
-        self.width = width
-        self.height = height
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
 
-    def process(self, context: dict) -> dict:
-        # We need the world here, but perception nodes usually work on 'context'.
-        # For InternalState, we assume the system passes the world or raw entities info.
-        # However, the design doc says nodes are part of the pipeline.
-        # I'll update the pipeline to pass the world if needed, or extract data beforehand.
+class OCRNode:
+    """
+    Extracts text from image data using Tesseract.
+    """
+    def __init__(self, lang: str = "eng"):
+        self.lang = lang
+
+    def process(self, img: Any) -> Dict[str, Any]:
+        if pytesseract is None:
+            print("[OCR] pytesseract not installed.")
+            return {"text": "", "conf": 0.0}
         
-        world = context.get("_world")
-        if not world:
-            return context
+        # Assume img is numpy array (OpenCV style)
+        try:
+            # Simple string extraction
+            text = pytesseract.image_to_string(img, lang=self.lang)
+            return {"text": text.strip()}
+        except Exception as e:
+            print(f"[OCR] Error: {e}")
+            return {"text": "", "error": str(e)}
 
-        # Grid: 0: Empty, 1: Snake Head, 2: Snake Body, 3: Apple
-        grid = np.zeros((self.height, self.width), dtype=np.float32)
+class GridMapperNode:
+    """
+    Converts a list of entities (transforms) into a 2D occupancy grid.
+    """
+    def __init__(self, grid_size: int = 10, cell_size: float = 1.0):
+        self.grid_size = grid_size
+        self.cell_size = cell_size
 
-        # 1. Fill Apples
-        apples = world.get_entities_with(SnakeColliderComponent, GridPositionComponent)
-        for ent in apples:
-            collider = world.get_component(ent, SnakeColliderComponent)
-            pos = world.get_component(ent, GridPositionComponent)
-            if collider.type == "apple" and 0 <= pos.x < self.width and 0 <= pos.y < self.height:
-                grid[pos.y, pos.x] = 3.0
+    def process(self, context: Dict[str, Any]) -> np.ndarray:
+        """
+        Expects context to contain a list of 'entities' with 'x' and 'y'.
+        Returns a numpy grid (0 = empty, 1 = occupied).
+        """
+        grid = np.zeros((self.grid_size, self.grid_size), dtype=int)
 
-        # 2. Fill Snake
-        snakes = world.get_entities_with(SnakeBodyComponent, GridPositionComponent)
-        for ent in snakes:
-            pos = world.get_component(ent, GridPositionComponent)
-            body = world.get_component(ent, SnakeBodyComponent)
-            
-            # Body
-            for bx, by in body.body_segments:
-                if 0 <= bx < self.width and 0 <= by < self.height:
-                    grid[by, bx] = 2.0
-            
-            # Head
-            if 0 <= pos.x < self.width and 0 <= pos.y < self.height:
-                grid[pos.y, pos.x] = 1.0
+        entities = context.get("visible_entities", [])
+        for ent in entities:
+            # Assuming ent is a dict of component data or similar
+            if 'TransformComponent' in ent:
+                t = ent['TransformComponent']
+                gx = int(t['world_x'] / self.cell_size)
+                gy = int(t['world_y'] / self.cell_size)
 
-        context["grid_observation"] = grid.flatten().tolist()
-        return context
+                if 0 <= gx < self.grid_size and 0 <= gy < self.grid_size:
+                    grid[gy, gx] = 1 # Mark occupied
+
+        return grid

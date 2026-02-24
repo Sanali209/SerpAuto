@@ -1,121 +1,62 @@
-# Дизайн-документ: Игровой режим (Play Mode) на базе ModernGL
+# Play Mode (ModernGL Rendering)
 
-Игровой режим (Play Mode) в архитектуре Serpentine — это не отдельная программа, а специфическая конфигурация систем ядра (ECS). Главная концепция заключается в том, что игрок становится полноправным участником симуляции, управляя одной (или несколькими) сущностями наравне с агентами ИИ, пока ModernGL аппаратно рендерит сцену.
+Play Mode turns the engine into a game runtime. In this configuration, a human player controls an entity alongside AI agents, visualized via hardware-accelerated rendering (ModernGL).
 
-Ниже описана архитектура этого режима, процесс его запуска и бесшовная интеграция с режимом разработчика (Dev Mode).
+## 1. Bootstrapping & Lifecycle
 
----
+The engine initializes with a configuration object that determines who owns the OS window.
 
-## 1. Архитектура Запуска (Bootstrapping & Lifecycle)
+### Two Sub-modes:
+1.  **Play in Editor (PIE)**: The game runs inside the DearPyGui (DPG) toolset. The render output is blitted to a DPG Texture.
+2.  **Standalone Play**: DPG is not loaded. The engine creates a raw GLFW/ModernGL window for maximum FPS.
 
-Движок инициализируется объектом конфигурации, который определяет, кто владеет главным окном операционной системы.
+**Toggle Logic**:
+Pressing `F11` switches between `State.PLAY` and `State.DEV`.
+*   **PLAY**: Input goes to the `PlayerControllerComponent`. Time flows.
+*   **DEV**: Input goes to GUI. Time is paused (optional). Debug overlays appear.
 
-### Два подрежима Play Mode:
+## 2. Input Handling (Human-in-the-Loop)
 
-1. **Play in Editor (PIE):** Игра запускается внутри DearPyGui (DPG). Окно рендера разворачивается на весь экран (или занимает центральный док), скрывая панели разработчика. Рендеринг идет через Framebuffer Object (FBO) видеокарты в текстуру DPG.
-2. **Standalone Play (Релизная сборка):** DPG не импортируется вообще. Движок создает чистое GLFW/ModernGL окно. Это обеспечивает максимальную производительность без оверхеда на GUI-фреймворк.
+### 2.1. PlayerInputSystem
+*   Polls hardware (Keyboard/Mouse/Gamepad).
+*   Maps raw inputs to semantic `Actions` (`MoveAction`, `ShootAction`).
+*   Injects actions into the `ActionBufferComponent` of the entity tagged with `PlayerControllerComponent`.
 
-**Логика переключения (в режиме PIE):**
-При нажатии горячей клавиши (например, `F11` или `Esc`) `SerpentineEngine` переключает флаг `engine.state = State.PLAY` на `State.DEV`.
+### 2.2. Raycasting
+To allow interaction with the 3D world:
+1.  System gets cursor screen coordinates.
+2.  Unprojects to world space using `CameraComponent` matrices.
+3.  Casts a ray against `ColliderComponents`.
+4.  Generates interaction events (`AttackAction`, `TalkAction`).
 
-* Время в `World` ставится на паузу (или продолжает идти, если нужен live-дебаг).
-* DPG восстанавливает панели инспекторов, графов и Behavior Trees.
-* Ввод игрока блокируется, курсор освобождается для работы с интерфейсом.
+## 3. Rendering Pipeline (ModernGL)
 
----
+`ModernGLRenderSystem` handles the visual output.
 
-## 2. Обработка Ввода (Human-in-the-Loop)
+**Pipeline Steps:**
+1.  **Transform Sync**: Update Model Matrices from ECS `TransformComponent`.
+2.  **Global Uniforms**: Upload `dt`, light positions, and Camera View/Proj matrices.
+3.  **Geometry Pass**: Render meshes (`MeshComponent`) with materials. Supports Instancing.
+4.  **Post-Processing**: Apply FBO effects (Bloom, Color Grading).
+5.  **UI Overlay**: Render HUD (Health, Ammo).
+6.  **Swap Buffers**: Display frame.
 
-В игровом режиме система ввода должна быть максимально отзывчивой (без задержек тикового сервера ИИ).
+## 4. Player-Agent Symbiosis
 
-### 2.1. Система: `PlayerInputSystem`
+### 4.1. Unified Perception
+AI Agents use `InternalStateNode` to scan the world. They do not distinguish between Player entities and other AI entities. If the Player enters an enemy's Frustum, the enemy's Behavior Tree triggers a "Chase" sequence.
 
-Работает в самом начале фазы каждого кадра.
+### 4.2. Possession Mechanic
+The ECS architecture allows seamless body-swapping.
+*   **Action**: Player presses `F` on an ally NPC.
+*   **System Logic**:
+    1.  Swap `PlayerControllerComponent` from current entity to target entity.
+    2.  Attach `AI_BrainComponent` to the old entity (handing it back to AI control).
+    3.  Update Camera target.
 
-* Опрашивает аппаратный ввод (клавиатура, мышь, геймпад).
-* Ищет сущность с `PlayerControllerComponent` и `ActionBufferComponent`.
-* Конвертирует сырой ввод в атомарные команды движка (`MoveAction`, `ShootAction`, `InteractAction`) и кладет их в очередь.
+## 5. Dev Mode Integration
 
-### 2.2. Матрица Камеры и Raycasting
-
-Чтобы игрок мог кликать по 3D-объектам (NPC, лут):
-
-1. `PlayerInputSystem` берет координаты курсора на экране.
-2. Извлекает `CameraComponent` игрока (содержащий `View` и `Projection` матрицы).
-3. Производит **Unprojection** (Raycasting): выпускает математический луч от экрана в 3D-пространство ModernGL.
-4. Проверяет пересечения луча с `ColliderComponent` других сущностей в `World`.
-5. Если луч попал во врага, генерируется `AttackAction(target_id=enemy.id)`.
-
----
-
-## 3. Графический Конвейер (ModernGL Render Pipeline)
-
-В Play Mode графика выходит на первый план. `ModernGLRenderSystem` выполняет отрисовку сцены, используя данные ECS.
-
-### Шаги рендеринга (внутри одного тика):
-
-1. **Синхронизация Трансформаций:** Извлечение матриц моделей (`Model Matrix`) из `TransformComponent` всех видимых объектов.
-2. **Global Uniforms:** Загрузка времени (`dt`), позиции солнца/света и матриц камеры игрока в шейдеры.
-3. **Отрисовка Сцены (Opaque & Transparent):** * Рендер геометрии (`MeshComponent`) с учетом материалов (`MaterialComponent`).
-* Использование Instanced Rendering для частиц, травы или пуль (один Draw Call на 10 000 объектов).
-
-
-4. **Постобработка (FBO Ping-Pong):** Наложение эффектов (Bloom, Color Grading) через экранные шейдеры.
-5. **UI Layer:** Отрисовка игрового интерфейса (ХП, патроны) поверх 3D-кадра.
-6. **Swap Buffers:** Вывод итогового кадра на экран (или копирование в текстуру DPG, если мы в PIE).
-
----
-
-## 4. Взаимодействие Игрока и Агентов (Симбиоз)
-
-Игровой режим раскрывает всю мощь гибридного движка: Игрок и Агенты делят одно физическое и информационное пространство.
-
-### 4.1. Единое Информационное Поле (Perception)
-
-Агенты (NPC) используют `InternalStateNode`, чтобы сканировать `World`. Для мозга Агента нет разницы между сущностью управляемой другим Агентом и сущностью Игрока.
-
-* Если `TransformComponent` игрока попадает в радиус обзора (Frustum) врага, враг генерирует `AlertMessage` в Pub/Sub шину.
-* Рой Агентов координируется через `MailboxComponent`, чтобы окружить Игрока.
-
-### 4.2. Смена Тела (Possession Mechanic)
-
-Ультимативная фича ECS. В Play Mode ты можешь подойти к любому дружественному NPC, нажать кнопку (например, `F`), и `PossessionSystem` сделает следующее:
-
-1. Удалит `PlayerControllerComponent` с твоего текущего героя.
-2. Повесит `AI_BrainComponent` на твоего бывшего героя (передаст управление скрипту).
-3. Удалит мозг у NPC.
-4. Повесит `PlayerControllerComponent` на NPC.
-5. Привяжет главную камеру к новому телу.
-*Результат:* Бесшовная смена главного героя "на лету" без перезагрузки сцены.
-
----
-
-## 5. Взаимодействие с Dev Mode (Инструменты Творца)
-
-Главная сила запуска игры "внутри" движка — возможность интроспекции и изменения мира в реальном времени. Когда ты переключаешься из Play Mode в Dev Mode, открываются следующие возможности:
-
-### 5.1. Live State Editing (Редактирование наживо)
-
-* **Характеристики:** Игра на паузе. Ты кликаешь на босса, открываешь инспектор, находишь `StatsComponent` и меняешь `health` с 5000 на 1. Возвращаешься в Play Mode и убиваешь его с одного удара.
-* **Шейдеры:** Ты открываешь `.glsl` файл материала прямо в редакторе кода. ModernGL позволяет перекомпилировать шейдер "на лету" (Hot-Reloading). Сохраняешь файл — и вода в игре мгновенно меняет цвет без перезапуска.
-
-### 5.2. Отладка ИИ в контексте мира
-
-Включаешь галочку `[x] Show AI Debug Overlays` в DPG:
-
-* ModernGLRenderSystem начинает дополнительно отрисовывать цветные линии поверх 3D-мира.
-* Ты видишь пути (Pathfinding), которые построили агенты (зеленые линии от ног NPC до целевых точек).
-* Ты видишь конусы их зрения (Vision Cones) и текущее состояние их Behavior Tree (текст парит прямо над головами NPC: `[RUNNING: FlankPlayer]`).
-
-### 5.3. Запись Датасета (Shadow Mode)
-
-Если включена система `DatasetLoggerSystem`, твой геймплей незаметно пишется в фоне.
-
-* Каждый кадр FBO (то, что ты видишь) + твой Action (нажатые кнопки) сохраняются в HDF5-файл.
-* Прямо из режима Dev Mode ты можешь отправить эту базу на обучение нейросети, чтобы завтра этот уровень проходил твой клон.
-
----
-
-Эта архитектура делает границу между "Созданием игры", "Игрой" и "Обучением ИИ" абсолютно прозрачной.
-
-Хочешь продумать структуру класса `ModernGLRenderSystem`, чтобы понять, как именно загружать 3D-модели (Mesh) и текстуры в память GPU перед началом игрового цикла?
+Switching to Dev Mode enables "God Mode" features:
+*   **Live State Editing**: Modify component values (Health, Speed) in real-time via DPG inspectors.
+*   **Shader Hot-Reload**: Edit `.glsl` files and see changes instantly.
+*   **AI Debug Overlays**: Render navigation paths, vision cones, and current Behavior Tree states above agent heads.

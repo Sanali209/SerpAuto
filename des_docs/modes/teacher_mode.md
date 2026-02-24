@@ -1,261 +1,69 @@
-# Дизайн-документ: Режим "Обучение с учителем" (Teacher Mode / Imitation Learning)
-
-## 1. Концепция и Философия Режима
-
-В классическом машинном обучении сбор Ground Truth данных — это самая дорогая и долгая фаза. Режим **Teacher Mode** превращает движок Serpentine в **студию "захвата движений" (Motion Capture) для когнитивных задач**.
-
-Вместо того чтобы вручную размечать тысячи скриншотов или писать сотни правил для парсера, оператор (человек) просто выполняет задачу сам через интерфейс движка. Движок работает как "шпион": он прозрачно перехватывает действия оператора, сопоставляет их с тем, что видел агент в эту миллисекунду, и формирует идеальный датасет для алгоритмов Behavioral Cloning (Клонирование Поведения) или дообучения локальных LLM/VLM моделей.
-
----
-
-## 2. Изменения в Архитектуре (ECS Shift)
-
-Переход в режим Teacher не ломает ядро. Мы просто меняем состав активных Систем (`Systems`) в главном цикле `SerpentineEngine`.
-
-* **Отключается:** `AI_BrainSystem`. Деревья поведения (Behavior Trees) агентов ставятся на паузу. Агенты становятся "пустыми оболочками", ожидающими внешнего управления.
-* **Продолжают работу:** * `PerceptionPipelineSystem`: Конвейер зрения/DOM продолжает молотить кадры и обновлять `PerceptionComponent`.
-* `ActionExecutionSystem`: Продолжает исполнять экшены из буфера (двигать реальную мышку в ОС или кликать в браузере).
-
-
-* **Подключаются новые Системы:**
-* 🟢 **`HumanInputSystem`**: Мост между мышью/клавиатурой разработчика и буфером агента.
-* 🟢 **`DatasetLoggerSystem`**: Система сохранения пар `[Стейт -> Экшен]` на диск.
-
-
-
----
-
-## 3. Математика Перехвата (HumanInputSystem)
-
-Самая сложная часть — это правильная трансляция координат. Оператор кликает в окне DearPyGui (DPG), но клик должен улететь в целевую среду (например, в окно эмулятора игры или браузера).
-
-**Поток данных (Tick Flow):**
-
-1. Оператор видит окно игры внутри панели *Perception Monitor* в DPG.
-2. Оператор кликает по врагу на экране (координаты клика внутри окна DPG: `X: 450, Y: 300`).
-3. Коллбэк DPG передает эти координаты в `HumanInputSystem`.
-4. Система делает **Un-projection (Обратную проекцию)**:
-* Вычисляет смещение картинки относительно границ окна DPG.
-* Учитывает масштаб (если картинка была сжата).
-* Получает реальные координаты относительно окна целевой игры (например, `Target_X: 900, Target_Y: 600`).
-
-
-5. Система генерирует стандартный объект `ClickAction(x=900, y=600, target_env="EXTERNAL_OS")` и кладет его в `ActionBufferComponent` управляемого агента.
-6. В фазе *Execution*, движок физически кликает мышкой ОС по окну игры.
-
----
-
-## 4. Пайплайн Записи (DatasetLoggerSystem)
-
-Эта система работает в самом конце тика (Telemetry Phase). Ее задача — записать историю.
-
-**Логика работы на 1 тике:**
-
-1. Система проверяет буфер `ActionBufferComponent` агента.
-2. Если буфер пуст (оператор ничего не нажал), тик пропускается (мы не пишем мусорные кадры простоя, если только это не предусмотрено настройками).
-3. Если оператор совершил экшен, система берет:
-* **State (Вход):** Глубокую копию `PerceptionComponent` (текущий распарсенный JSON + опционально сырой кадр).
-* **Action (Выход):** Совершенный экшен (например, `ClickAction(900, 600)` или `KeyboardAction("Hello")`).
-
-
-4. Формирует объект `EpisodeStep` и сериализует его.
-
-**ВАЖНО (Web ML Insight): Защита от Distributional Shift**
-Слепое клонирование поведения (Behavioral Cloning) уязвимо к "сдвигу распределения". Если агент оступится 1 раз, и этого состояния не было в обучающей выборке, ошибка начнет накапливаться каскадно. Чтобы избежать засорения HDF5 мусорными кадрами, `DatasetLoggerSystem` обязан реализовывать паттерн **On-Action Recording** (писать данные *только* в момент осмысленного клика/нажатия клавиши) и предоставлять кольцевой буфер (Ring Buffer) на 5 секунд, чтобы оператор мог отменить (Drop) ошибочный экшен до сохранения на диск.
-
-### Структура хранения данных:
-
-Для производительности и удобства MLOps используются два формата в зависимости от типа данных агента:
-
-* **Для DOM/API агентов (Текстовые данные):** Используется формат **JSONL** (JSON Lines). Он легковесный и идеально подходит для файн-тюнинга LLM (каждая строка — это готовый промпт и ответ).
-* **Для Vision/Игровых агентов (Тяжелые пиксели):** Используется формат **HDF5** (`.h5`). Он позволяет сохранять тысячи массивов NumPy (кадров игры) вместе с метаданными (координатами кликов) без потери скорости чтения/записи, что критично для обучения YOLO или CNN-моделей на PyTorch.
-
----
-
-## 5. Графический Интерфейс (GUI в режиме Teacher)
-
-Интерфейс "God Mode" адаптируется под задачу записи.
-
-### 5.1. Панель Control Deck (Транспорт)
-
-* Появляется блок **Recording Controls**.
-* Поле `Dataset Name`: (например, `ksp_ryzen_parsing_v1`).
-* Dropdown `Recording Mode`:
-* *Continuous:* Пишет каждый кадр (даже если оператор ничего не делает, полезно для RL симуляций физики).
-* *On-Action:* Пишет кадр только в момент совершения действия оператором (экономит 99% места на диске).
-
-
-* Большая мигающая кнопка **`[⏺ REC]`**.
-
-### 5.2. Perception Monitor (Интерактивный Холст)
-
-* Экран, где рендерится зрение агента, становится кликабельным.
-* **Визуальный фидбек:** Когда оператор кликает по экрану в режиме `REC`, на долю секунды в месте клика отрисовывается красный прицел (Crosshair), подтверждающий, что `HumanInputSystem` успешно перехватила координаты.
-
-### 5.3. Dataset Inspector (Статистика сессии)
-
-Новое плавающее окно, заменяющее Behavior Tree (которое сейчас отключено).
-
-* **Счетчики:** `Total Episodes: 5`, `Recorded Steps: 142`.
-* **Последний записанный шаг (Live Preview):** Показывает миниатюру кадра и текст экшена, который только что улетел в БД: `Saved -> [State: 14 entities] -> Action: Click(900, 600)`.
-* Кнопка `[🗑️ Drop Last Step]`: Если оператор случайно мискликнул, он может отменить запись последнего кадра, не портя чистоту датасета.
-
----
-
-## 6. Юзкейсы и Интеграция с MLOps
-
-Как собранные данные превращаются в "мозг" агента?
-
-### Сценарий А: Быстрая разметка для YOLO (Object Detection)
-
-Тебе нужно научить агента находить редкий ресурс в выживалке на iPad.
-
-1. Включаешь Teacher Mode. Настраиваешь пайплайн на `ScreenCapture`.
-2. Запускаешь `[⏺ REC]`.
-3. Играешь в игру через окно DPG. Каждый раз, когда видишь ресурс, кликаешь по нему мышкой.
-4. Движок сохраняет кадры и координаты твоих кликов.
-5. **ML-Скрипт:** Ты пишешь простейший скрипт, который берет HDF5 файл, берет координаты твоего клика `(X, Y)`, рисует вокруг них Bounding Box `(w=50, h=50)` и экспортирует в формат Ultralytics YOLO.
-6. *Итог:* Ты играл 10 минут, а на выходе получил готовый, размеченный датасет на 1000 картинок без использования ручной разметки в Label Studio! Обучаешь YOLO, конвертируешь в ONNX, агент прозрел.
-
-### Сценарий Б: Обучение эндогенной нейросети (Behavioral Cloning)
-
-Тебе нужно, чтобы бот сам проходил сложную процедуру логина на заводе, где поля ввода постоянно меняют расположение. Написание скрипта `Sequence -> Click -> Type` не работает из-за динамического UI.
-
-1. Включаешь Teacher Mode.
-2. Проходишь процесс логина руками 50 раз. Движок сохраняет последовательности: `[Картинка 1 -> Клик(X, Y)]`, `[Картинка 2 -> Ввод("admin")]`.
-3. **ML-Скрипт:** Ты скармливаешь этот датасет легкой CNN-модели на PyTorch. Нейросеть учится предсказывать `Action` на основе входного `Perception`.
-4. Экспортируешь обученную модель в ONNX.
-5. В интерфейсе Architect Mode добавляешь агенту узел `ModelInferenceNode`, скармливаешь ему этот `.onnx` файл.
-6. *Итог:* Behavior Tree доходит до узла "Логин", узел дергает модель, модель выдает координаты клика, агент сам заполняет формы, имитируя твои движения.
-
-## Резюме
-
-Режим **Teacher** — это ультимативный мост между инженером и агентом. Благодаря изоляции компонентов в архитектуре ECS, движку абсолютно неважно, кто генерирует `Actions` в буфере — сложный граф LLM или живой человек с мышкой. Пайплайн исполнения и записи остается неизменным, гарантируя 100% достоверность собранных данных.
-Это критически важное дополнение. Мы собрали гигабайты идеальных действий оператора (Ground Truth), но для движка это пока просто мертвый груз на жестком диске. Нам нужен конвейер, который превратит этот опыт в "веса" нейросети (матрицы чисел), способные принимать решения самостоятельно.
-
-Вот детальный дизайн-документ пайплайна **Data-to-Model**, который описывает жизненный цикл от сохраненного файла до работающего узла в Behavior Tree.
-
----
-
-# Дизайн-документ (Дополнение): MLOps Пайплайн — От Данных к Нейронному Мозгу
-
-Этот модуль описывает автономный процесс (вне главного цикла ECS), который запускается разработчиком после завершения записи в `Teacher Mode`.
-
-## 1. Этап Экстракции: Парсинг датасета (Data Parsing)
-
-Движок записал данные в форматы `JSONL` (текст) или `HDF5` (изображения + метаданные). Сначала мы пишем скрипт-конвертер (`dataset_prep.py`), который переводит сырые логи движка в формат, понятный ML-фреймворкам (PyTorch / Ultralytics).
-
-### Сценарий А: Подготовка для YOLO (Компьютерное Зрение)
-
-*Задача:* Научить агента находить на экране кнопку, руду или врага по кликам оператора.
-
-1. Скрипт читает `HDF5`. Достает матрицу пикселей (кадр) и объект `ClickAction(x, y)`.
-2. Так как YOLO нужны Bounding Boxes (рамки), а оператор просто кликал в центр объекта, скрипт генерирует **синтетическую рамку**: берет координату клика `(x, y)` и рисует вокруг нее квадрат (например, 50x50 пикселей).
-3. Сохраняет кадр как `.jpg`, а координаты рамки пишет в текстовый файл `frame_001.txt` в формате YOLO: `[class_id x_center y_center width height]`.
-
-### Сценарий Б: Подготовка для Behavioral Cloning (Клонирование поведения)
-
-*Задача:* Научить агента управлять "Змейкой" или парсить DOM на основе состояний.
-
-1. Скрипт читает `JSONL`.
-2. Извлекает фичи (State): `PerceptionComponent.raw_context` (например, матрица сетки 10x10 или вектор расстояний до врагов).
-3. Извлекает таргет (Action): То, что нажал человек. Если это `ChangeDirectionAction("UP")`, скрипт кодирует это в число (One-Hot Encoding): `UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3`.
-4. Пакует всё это в объект `torch.utils.data.Dataset`.
-
----
-
-## 2. Этап Обучения (Model Training)
-
-Здесь в дело вступает тяжелая математика. Обучение происходит на видеокарте (GPU) разработчика или на облачном сервере (Google Colab / Hugging Face).
-
-### Ветка 1: Обучение зрения (Ultralytics YOLO)
-
-Код обучения умещается буквально в три строки благодаря экосистеме Ultralytics.
-
-```python
-from ultralytics import YOLO
-
-# 1. Загружаем легкую предобученную модель (nano) для максимального FPS
-model = YOLO('yolov8n.pt')
-
-# 2. Запускаем тренировку на нашем сгенерированном датасете
-# Модель сама смотрит на картинки, ищет паттерны вокруг кликов оператора
-model.train(data='serpentine_yolo_dataset.yaml', epochs=100, imgsz=640)
-
-# Результат: Файл runs/detect/train/weights/best.pt
-
+# Teacher Mode (Imitation Learning & Behavioral Cloning)
+
+## 1. Overview
+Teacher Mode turns the Serpentine Engine into a high-fidelity data collection studio. In this mode, a human operator (The Teacher) takes control of an agent to perform a specific task. The engine records every tick of the simulation, capturing the "State -> Action" pairs necessary for Imitation Learning (Behavioral Cloning).
+
+## 2. Architecture: The Recording Loop
+
+Unlike Play Mode, where the goal is entertainment, Teacher Mode prioritizes data integrity and labeling.
+
+### 2.1. Active Systems
+*   **HumanInputSystem**: Captures keyboard/mouse events and injects them into the `ActionBufferComponent` of the puppet agent.
+*   **DatasetLoggerSystem**: The core component of this mode. It subscribes to the engine loop and serializes the state of the world + the action taken at the end of every tick.
+*   **AI_BrainSystem**: *Disabled* or running in "Shadow Mode" (predicting but not acting) to compare model vs. human performance.
+
+### 2.2. The Data Format (HDF5 / JSONL)
+We use different storage backends depending on the domain:
+*   **HDF5 (High Performance)**: For computer vision tasks (Screenshots + Actions). Efficiently stores dense arrays.
+*   **JSONL (Text/Web)**: For DOM-based agents. Stores the HTML tree and the clicked XPath selector.
+
+**Example Record:**
+```json
+{
+  "tick": 1405,
+  "perception": {
+    "screenshot_path": "data/session_01/frame_1405.jpg",
+    "dom_elements": [...]
+  },
+  "expert_action": {
+    "type": "CLICK",
+    "x": 500,
+    "y": 300
+  },
+  "metadata": {
+    "task_id": "login_flow",
+    "operator_quality": "expert"
+  }
+}
 ```
 
-### Ветка 2: Обучение логики (PyTorch Behavioral Cloning)
+## 3. Workflow: From Demonstration to Model
 
-Мы пишем простую нейросеть (CNN для картинок или MLP для массивов). Сеть должна ответить на вопрос: *"Если я вижу этот State, какой Action нажал бы мой создатель?"*
+### Step 1: Scenario Setup
+The developer loads a `Blueprint` (e.g., "E-commerce Parser") and spawns the agent in a controlled environment (Docker container with a browser).
 
-```python
-import torch
-import torch.nn as nn
+### Step 2: Live Recording
+1.  Operator presses `[REC]`.
+2.  Operator performs the task (navigates to URL, solves CAPTCHA, scrapes price).
+3.  If the operator makes a mistake, they press `[Backtrack]` (rewind time 5 seconds) to overwrite the bad data.
+4.  Operator presses `[STOP]`.
 
-# Простая сеть-классификатор действий
-class AgentBrainNet(nn.Module):
-    def __init__(self, input_size, num_actions):
-        super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(input_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, num_actions)
-        )
-        
-    def forward(self, state_vector):
-        return self.fc(state_vector) # Возвращает вероятности действий [UP, DOWN, LEFT, RIGHT]
+### Step 3: Dataset Review (The Labeling GUI)
+The DPG Interface provides a timeline view of the session. The user can:
+*   **Replay**: Watch the recording.
+*   **Filter**: Remove "Idling" frames where the operator was inactive.
+*   **Augment**: Add noise or crop the images to increase dataset robustness.
 
-# Цикл обучения (упрощенно):
-# 1. Кормим сети стейт: state = [0, 1, 0, 0, 3...]
-# 2. Сеть говорит: "Наверное, надо нажать LEFT (2)"
-# 3. Мы смотрим в датасет: "ОШИБКА! Оператор нажал UP (0)"
-# 4. Считаем Loss (ошибку) и обновляем веса через Backpropagation (loss.backward())
-
-```
+## 4. Integration with Training
+Once the dataset is finalized, it is fed into the Training Pipeline (PyTorch/YOLO).
+*   **Goal**: Train a policy network `π(s) -> a` that mimics the human.
+*   **Validation**: The trained model is plugged back into the engine in `Gymnasium Mode` to verify if it can solve the task autonomously.
 
 ---
 
-## 3. Этап Компиляции: Экспорт в ONNX (The Engine Bridge)
-
-Это ключевой момент для движка **Serpentine**. Мы **категорически не используем** PyTorch внутри главного цикла `SerpentineEngine`, потому что он огромный, медленный и требует сложных зависимостей (CUDA).
-
-Мы конвертируем обученный "мозг" в формат **ONNX (Open Neural Network Exchange)**. Это чистый, скомпилированный граф математических вычислений на C++.
-
-* Для YOLO: `yolo export model=best.pt format=onnx`
-* Для PyTorch:
-```python
-dummy_input = torch.randn(1, input_size)
-torch.onnx.export(pytorch_model, dummy_input, "agent_brain.onnx")
-
-```
-
-
-
-**Итог MLOps пайплайна:** Файл `agent_brain.onnx` размером всего в пару мегабайт, который может выполняться со скоростью 1000+ раз в секунду даже на слабом процессоре (CPU) внутри Docker-контейнера на Koyeb.
-
----
-
-## 4. Замыкание Цикла: Интеграция в движок (Inference Phase)
-
-Данные превратились в модель. Теперь мы вставляем этот мозг обратно в агента через графический интерфейс (DearPyGui) в режиме `Architect Mode`.
-
-1. Мы открываем **Pipeline Node Editor** (для зрения) или **Behavior Tree Tracer** (для логики).
-2. Добавляем узел **`ONNXInferenceNode`**.
-3. В автосгенерированном UI узла нажимаем кнопку выбора файла и указываем путь: `models/agent_brain.onnx`.
-4. Нажимаем кнопку `[▶ Play]` в Control Deck.
-
-**Как это работает внутри тика (Tick Logic):**
-
-1. *Perception:* Движок собирает текущий `PerceptionComponent` (например, матрицу Змейки `10x10`).
-2. *Cognition:* Дерево поведения доходит до узла `ONNXInferenceNode`. Узел берет матрицу и скармливает ее библиотеке `onnxruntime` (которая написана на C++).
-3. *Prediction:* `onnxruntime` мгновенно (за 1-2 миллисекунды) прогоняет матрицу через веса, обученные на кликах оператора, и выплевывает вектор: `[0.9, 0.05, 0.01, 0.04]`.
-4. *Action Translation:* Узел видит, что индекс `0` (UP) имеет максимальную вероятность `0.9` (90% уверенности, что оператор нажал бы так).
-5. *Execution:* Узел генерирует `ChangeDirectionAction("UP")` и кладет в `ActionBufferComponent`.
-
-### Резюме конвейера
-
-`Оператор (Teacher)` ➡️ `Запись в HDF5` ➡️ `PyTorch (Обучение Loss)` ➡️ `Экспорт в ONNX` ➡️ `Узел Behavior Tree` ➡️ `Автономный Агент`.
-
-Благодаря этому конвейеру, агент в Serpentine не просто выполняет захардкоженные `if/else`, он буквально **воспроизводит интуицию разработчика**, запечатленную в весах ONNX-файла.
+## 5. Shadow Mode (Human-in-the-Loop Validation)
+After training, we can run Teacher Mode again with the AI model active but disconnected from the controls.
+*   **Human**: Controls the agent.
+*   **AI**: Predicts an action every tick.
+*   **Engine**: Compares `HumanAction` vs `AIAction`.
+*   **Metric**: If `Divergence > Threshold`, the frame is flagged as a "Edge Case" that needs more training data. This is crucial for **Active Learning**.
