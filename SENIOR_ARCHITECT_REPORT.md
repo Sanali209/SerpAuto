@@ -110,7 +110,28 @@ A profound gap exists between the "Serpentine Vision" (as documented) and the cu
 
 ---
 
-## 5. Action Plan (Roadmap)
+## 5. Universal Behavior Tree System: Analysis & Gaps
+
+The documentation does not adequately describe the internal mechanics of the Behavior Tree (BT) system, leaving developers without a standard operating procedure for agent logic.
+
+### 5.1. The "Standard Node Library" Gap
+*   **Analysis:** To universalize the system, a standard library of atomic nodes is required. Currently, the codebase implements only `Selector`, `Sequence`, `SendMessage`, `ListenForEvent`, and `LLMInference`.
+*   **Missing Universal Nodes:**
+    1.  **Decorators:** `Inverter` (NOT), `Succeeder` (Always Success), `RepeatUntilFail`.
+    2.  **Blackboard Logic:** `CheckBlackboardVariable` (Condition), `SetBlackboardVariable` (Action).
+    3.  **Control Flow:** `Parallel` (Run N children simultaneously).
+    4.  **Utility:** `WaitNode` (Time delay), `Timeout` (Fail if child takes too long).
+*   **Recommendation:** Implement these nodes in `brain/nodes.py` to allow constructing complex behaviors without writing custom Python code for every trivial check.
+
+### 5.2. Asynchronous Execution Model Gap
+*   **Analysis:** The documentation fails to explain how long-running tasks (like `LLMInference`) interact with the BT tick cycle.
+*   **Reality:** The code uses `async def tick()`, and `LLMInferenceNode` returns `RUNNING` while `asyncio.create_task` runs in the background.
+*   **Critique:** This is a powerful but complex pattern ("Coroutines in BT"). Without strict documentation on state management (e.g., "Do not modify Blackboard while RUNNING"), developers will introduce race conditions.
+*   **Recommendation:** Create `BEHAVIOR_TREE_GUIDE.md` explaining the `RUNNING` state lifecycle and how to write safe async nodes.
+
+---
+
+## 6. Action Plan (Roadmap)
 
 ### Phase 1: Foundation & Cleanup (P0)
 1.  **Create Missing Artifacts:**
@@ -122,10 +143,12 @@ A profound gap exists between the "Serpentine Vision" (as documented) and the cu
 ### Phase 2: Synchronization (P1)
 1.  **Fix Gym Wrapper:** Remove the hardcoded `(64,64,3)` observation and implement actual grid extraction from `PerceptionComponent`.
 2.  **Hierarchy Maintenance:** Maintain the newly implemented `HierarchyComponent` and `TransformHierarchySystem` (verify with `tests/test_hierarchy.py`).
+3.  **Standard Node Library:** Implement missing BT nodes (`Inverter`, `WaitNode`, `CheckBlackboard`).
 
 ### Phase 3: Professionalization (P2)
 1.  **Docstrings:** Ensure all Python classes in `src/` have docstrings that match the updated documentation.
 2.  **Diagrams:** Replace text descriptions of the loop with a Mermaid diagram in `architecture/engine_overview.md` (or the new `ARCHITECTURE.md`).
+3.  **BT Guide:** Create `BEHAVIOR_TREE_GUIDE.md` detailing the async execution model.
 
 ### Phase 4: Advanced Tooling (P3 - New)
 1.  **Implement `BTVisualizerSystem`:** Use DPG Node Editor to visualize the active Behavior Tree state.
