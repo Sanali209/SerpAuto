@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Any, Optional
+import asyncio
 from core.world import World
 from core.entity import Entity
 from components.core import MailboxComponent, Message, MemoryComponent
@@ -14,6 +15,8 @@ class BehaviorTreeNode(ABC):
     @abstractmethod
     async def tick(self, world: World, agent_id: Entity) -> Status:
         pass
+
+# --- Control Flow Nodes ---
 
 class Selector(BehaviorTreeNode):
     """Fallback node: Runs children until one succeeds."""
@@ -38,6 +41,35 @@ class Sequence(BehaviorTreeNode):
             if status != Status.SUCCESS:
                 return status
         return Status.SUCCESS
+
+class Parallel(BehaviorTreeNode):
+    """
+    Runs all children concurrently.
+    Policy 'ALL_SUCCESS' (Sequence-like) or 'ONE_SUCCESS' (Selector-like).
+    """
+    def __init__(self, children: List[BehaviorTreeNode], policy: str = "ALL_SUCCESS"):
+        self.children = children
+        self.policy = policy
+
+    async def tick(self, world: World, agent_id: Entity) -> Status:
+        # Run all children concurrently
+        results = await asyncio.gather(*[child.tick(world, agent_id) for child in self.children])
+
+        if self.policy == "ALL_SUCCESS":
+            if any(r == Status.FAILURE for r in results):
+                return Status.FAILURE
+            if any(r == Status.RUNNING for r in results):
+                return Status.RUNNING
+            return Status.SUCCESS
+
+        elif self.policy == "ONE_SUCCESS":
+            if any(r == Status.SUCCESS for r in results):
+                return Status.SUCCESS
+            if any(r == Status.RUNNING for r in results):
+                return Status.RUNNING
+            return Status.FAILURE
+
+        return Status.FAILURE
 
 # --- MAS Communication Nodes ---
 
@@ -97,9 +129,6 @@ class ListenForEventNode(BehaviorTreeNode):
             return Status.FAILURE
 
         # Check inbox for the first message with matching topic
-        # We iterate through a copy or index to modify list safely if needed
-        # But here we just want to find one and remove it
-
         found_msg = None
         found_index = -1
 
