@@ -27,9 +27,9 @@ The following table highlights areas where the documentation "hallucinates" feat
 ## 2. Documentation Quality Audit
 
 ### 2.1. Language & Tone
-*   **Issue:** The documentation is a chaotic mix of **English** (headers, filenames, some abstract concepts) and **Russian** (detailed explanations, deep dives).
+*   **Issue:** The documentation is a chaotic mix of **English** (headers, filenames, some abstract concepts) and **Russian** (detailed explanations, deep dives). This violates `des_docs/dev_docs_rules.md` which states "Primary Language: English".
 *   **Impact:** This alienates international contributors and creates a disjointed reading experience.
-*   **Recommendation:** Standardize on **English** for all architectural documentation. Use Russian only for internal team memos if strictly necessary, but keep it out of the core `des_docs/`.
+*   **Recommendation:** Standardize on **English** for all architectural documentation.
 
 ### 2.2. Structure & Organization
 *   **Issue:** Information is scattered.
@@ -43,6 +43,13 @@ The following table highlights areas where the documentation "hallucinates" feat
 *   **Issue:** The docs often present *planned* features (like the Hierarchy) as *existing* features.
 *   **Impact:** A developer reading the docs will try to import `HierarchyComponent` and fail, leading to frustration.
 *   **Recommendation:** Clearly mark future features with a `[PLANNED]` or `[RFC]` tag in the header.
+
+### 2.4. Missing Core Artifacts
+*   **Issue:** Critical high-level documentation is missing.
+*   **Proposal:** Create the following documents:
+    1.  **`ARCHITECTURE.md`**: A single source of truth for the system's high-level design (Layers, Modules, Dependencies).
+    2.  **`DATA_FLOW.md`**: Diagrams and descriptions of how data moves through the system (Inputs -> Perception -> Brain -> Actions -> Outputs).
+    3.  **`GLOSSARY.md`**: A dictionary of terms to standardize terminology (e.g., distinguishing "Agent", "Entity", "Bot", "System", "Node").
 
 ---
 
@@ -79,10 +86,13 @@ The following table highlights areas where the documentation "hallucinates" feat
 
 ## 5. Action Plan (Roadmap)
 
-### Phase 1: Cleanup (P0)
-1.  **Delete/Update Hallucinations:** Remove `HierarchyComponent` docs OR implement the component immediately.
-2.  **Translate:** Convert all Russian text in `des_docs/` to English.
-3.  **Consolidate:** Merge overlapping UI documents.
+### Phase 1: Foundation & Cleanup (P0)
+1.  **Create Missing Artifacts:**
+    -   Draft `ARCHITECTURE.md` (consolidating `engine_overview.md`).
+    -   Draft `DATA_FLOW.md` (visualizing the loop).
+    -   Draft `GLOSSARY.md` (defining terms).
+2.  **Delete/Update Hallucinations:** Remove `HierarchyComponent` docs OR implement the component immediately.
+3.  **Translate:** Convert all Russian text in `des_docs/` to English.
 
 ### Phase 2: Synchronization (P1)
 1.  **Fix Gym Wrapper:** Remove the hardcoded `(64,64,3)` observation and implement actual grid extraction from `PerceptionComponent`.
@@ -90,7 +100,7 @@ The following table highlights areas where the documentation "hallucinates" feat
 
 ### Phase 3: Professionalization (P2)
 1.  **Docstrings:** Ensure all Python classes in `src/` have docstrings that match the updated documentation.
-2.  **Diagrams:** Replace text descriptions of the loop with a Mermaid diagram in `architecture/engine_overview.md`.
+2.  **Diagrams:** Replace text descriptions of the loop with a Mermaid diagram in `architecture/engine_overview.md` (or the new `ARCHITECTURE.md`).
 
 ---
 
