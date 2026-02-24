@@ -1,6 +1,23 @@
+import json
 import httpx
 from typing import Dict, Any, List
 from brain.adapter import BaseAIAdapter, AIResponse
+from components.core import PerceptionComponent, MemoryComponent
+
+class ContextBuilder:
+    """Service class that serializes Perception and Memory into a text/JSON prompt for LLMs."""
+    @staticmethod
+    def build_prompt(perception: PerceptionComponent, memory: MemoryComponent) -> str:
+        context = {
+            "perception": perception.raw_context,
+            "visible_entities": perception.visible_entities,
+            "blackboard": memory.blackboard,
+            "recent_actions": memory.history[-5:] if memory.history else []
+        }
+        try:
+            return json.dumps(context, indent=2)
+        except Exception:
+            return str(context)
 
 class OpenAILikeAdapter(BaseAIAdapter):
     """Adapter for OpenAI-compatible APIs (GPT-4, Gemini)"""

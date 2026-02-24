@@ -35,12 +35,14 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 *   **Milestone 4.4**: Swarm Logic Nodes (`SendMessage`, `ListenForEvent`).
 
 ## Phase 5: God Mode (UI & Developer Tools)
-**Goal**: Create a comprehensive "Control Center" for debugging and managing swarms using DearPyGui.
+**Goal**: Create a massive Docking Space "Control Center" for surgical debugging of ECS architecture and Multi-Agent Swarms.
 
-*   **Milestone 5.1**: Basic GUI Framework (`GUIDebugSystem`, Viewport Setup).
-*   **Milestone 5.2**: Entity Inspector & World Outliner.
-*   **Milestone 5.3**: Visual Debuggers (Perception Matrix, BT Visualizer).
-*   **Milestone 5.4**: Swarm Monitor (Traffic Visualizer, Dead Letter Queue).
+*   [x] **Milestone 5.1**: DearPyGui Core Workspace (Docking Layout, Control Deck, Time Travel).
+*   [x] **Milestone 5.2**: World Outliner (Entity Manager with CRUD operations).
+*   [x] **Milestone 5.3**: Component Inspector (Zero-Code UI via Pydantic parsing & Data Binding).
+*   [x] **Milestone 5.4**: Perception Monitor (GPU Textures, JSON Tree, Debug Overlays).
+*   **Milestone 5.5**: Brain & Memory Editor (Blackboard Editor, Prompt Preview, Episodic Log).
+*   **Milestone 5.6**: Actions & Swarm Visualizers (Intervention Queue, BT Tracer, Data Sniffer).
 
 ## Phase 6: Environment & Simulation (Advanced Features)
 **Goal**: Support hybrid environments (External OS + Internal Sim) and MLOps workflows.
@@ -51,25 +53,43 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 *   **Milestone 6.4**: Dataset Collection Tools (`Teacher Mode`).
 
 ## Phase 7: Persistence & Deployment (DevOps)
-**Goal**: Enable saving/loading of agent brains and world states for deployment and debugging.
+**Goal**: Enable saving/loading of agent brains, world states, and tool layouts for seamless debugging ("Time Travel").
 
-*   **Milestone 7.1**: World State Serialization (JSON Snapshots).
-*   **Milestone 7.2**: Project Configuration (Blueprints for Pipeline/BT).
+*   **Milestone 7.1**: World State Serialization & Snapshots (JSON dumps).
+*   **Milestone 7.2**: Project Configuration (Save/Load Blueprints for Pipeline/BT).
 *   **Milestone 7.3**: UI Layout Persistence (`dpg.save_init_file`).
-*   **Milestone 7.4**: Hot-Reload Logic (Pause/Resume Engine).
+*   **Milestone 7.4**: Time Travel & Hot-Reload Logic (Pause, Load Snapshot, Resume).
 
 ## Phase 8: Operation Modes (Lifecycle)
 **Goal**: Configure the engine for specific use cases (Debug, Deploy, Train).
 
-*   **Milestone 8.1**: Architect Mode (GUI + Debug Systems).
-*   **Milestone 8.2**: Production Mode (Headless + Telemetry + FastAPI).
-*   **Milestone 8.3**: Teacher Mode (Human Input + Dataset Logging).
-*   **Milestone 8.4**: Gymnasium Mode (Internal Physics + Rewards + Uncapped Speed).
+*   **Milestone 8.1**: Architect Mode (GUI + Debug Systems) [x].
+*   **Milestone 8.2**: Production Mode (Headless + Telemetry + FastAPI) [x].
+*   **Milestone 8.3**: Teacher Mode (Human Input + Dataset Logging) [x].
+*   **Milestone 8.4**: Gymnasium Mode (Internal Physics + Rewards + Uncapped Speed) [x].
+*   **Milestone 8.5**: Continuous Learning Mode (Actor-Learner split, Async I/O, Hot-Swapping) [x].
+
+## Phase 9: Sample Project (Snake AI)
+**Goal**: Demonstrate the full cycle of engine capabilities with a complete internal simulation and RL training loop.
+
+*   [x] **Milestone 9.1**: Internal Snake Simulation (Locomotion & Collision Systems).
+*   [x] **Milestone 9.2**: Agent Perception (Grid State Node) & Action Mapping.
+*   [x] **Milestone 9.3**: RL Training Loop Integration (Gymnasium).
+*   [x] **Milestone 9.4**: Architect Mode Visual Debugging.
 
 ## Phase 10: Scene Management & Dynamic Loading
 **Goal**: Create a Unity-like experience for managing scenes, systems, and entities dynamically.
 
-*   **Milestone 10.1**: Global Registries with Decorators (`@register_component/system`).
-*   **Milestone 10.2**: Scene File Format & Manager (Save/Load Scene).
-*   **Milestone 10.3**: CLI Entry Point (`main.py`) for Headless loading.
-*   **Milestone 10.4**: Integration with `SerpentineEngineV2` (Dynamic System Injection).
+*   [x] **Milestone 10.1**: Global Registries with Decorators (`@register_component/system`).
+*   [x] **Milestone 10.2**: Scene File Format & Manager (Save/Load Scene).
+*   [x] **Milestone 10.3**: CLI Entry Point (`main.py`) for Headless loading.
+*   [x] **Milestone 10.4**: Integration with `SerpentineEngineV2` (Dynamic System Injection).
+
+## Phase 11: Play Mode (ModernGL Rendering)
+**Goal**: Transition from a debug-only UI to a high-performance 3D/2D game rendering environment.
+
+*   [x] **Milestone 11.1**: ModernGL Render Pipeline (Shaders, Meshes, FBO).
+*   [x] **Milestone 11.2**: Play In Editor (PIE) Architecture.
+*   [x] **Milestone 11.3**: Player Input System (Hardware Input Bridge).
+*   [x] **Milestone 11.4**: Possession System (Human <-> AI Control Swapping).
+*   [ ] **Milestone 11.5**: Camera Raycasting & 3D World Interaction.

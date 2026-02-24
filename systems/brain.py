@@ -13,10 +13,12 @@ class AI_BrainSystem(System):
         entities = world.get_entities_with(BrainComponent)
         for entity in entities:
             brain = world.get_component(entity, BrainComponent)
+            
+            # Skip if waiting for external I/O (e.g. LLM call)
+            if brain.status == "WAITING_FOR_IO":
+                continue
 
-            # Here we would fetch the root node of the BT for this agent
-            # status = await root_node.tick(world, entity)
-
-            # Update status
-            # brain.status = status.value
-            pass
+            if brain.bt_root:
+                # Tick the Behavior Tree
+                status = await brain.bt_root.tick(world, entity)
+                brain.status = status.value

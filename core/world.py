@@ -23,6 +23,14 @@ class World:
         self._entities.add(ent)
         return ent
 
+    def remove_entity(self, entity: Entity):
+        """Removes an entity and all its associated components from the world."""
+        if entity in self._entities:
+            self._entities.remove(entity)
+            # Remove all components associated with this entity
+            for comp_type in list(self._components.keys()):
+                self.remove_component(entity, comp_type)
+
     def add_component(self, entity: Entity, component: BaseComponent):
         comp_type = type(component)
 
@@ -40,7 +48,14 @@ class World:
             self._entities_with_component[comp_type].remove(entity)
 
     def get_component(self, entity: Entity, comp_type: Type[BaseComponent]):
-        return self._components.get(comp_type, {}).get(entity)
+        if isinstance(entity, str):
+            try:
+                uid = uuid.UUID(entity)
+            except ValueError:
+                uid = entity
+        else:
+            uid = entity
+        return self._components.get(comp_type, {}).get(uid)
 
     def get_components(self, comp_type: Type[BaseComponent]) -> Dict[Entity, BaseComponent]:
         """Returns all components of a specific type mapping Entity -> Component"""

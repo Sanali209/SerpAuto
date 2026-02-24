@@ -27,9 +27,11 @@ Serpentine — это асинхронный, Tick-based движок на ба�
 
 #### C. Пространственные/Внутренние Компоненты
 *   `TransformComponent`: Позиция (x, y, w, h, layer).
+*   `HierarchyComponent`: Определяет родство (parent/children) для Data-Driven Hierarchy.
 *   `VelocityComponent`: Вектор скорости (vx, vy).
 *   `ColliderComponent`: Геометрия для физики (Box/Circle).
 *   `SpriteComponent`: Текстура для внутреннего рендера.
+*   **Подробнее о Иерархии**: См. [Реализация иерархии в ECS](ecs_hierarchy_impl.md) и [Управление иерархией в GUI](ecs_hierarchy_gui.md).
 
 ### 2.3. Главный Асинхронный Цикл (The Engine Tick Loop)
 Движок не блокируется тяжелыми вычислениями. Целевой Tick Rate — 20-60 TPS (в Headless/Gym режиме — безлимитно).
@@ -41,6 +43,11 @@ Serpentine — это асинхронный, Tick-based движок на ба�
 4.  **Cognition Phase**: `AI_BrainSystem` опрашивает Behavior Trees каждого агента. Если нужен ответ сети (LLM/API), создается асинхронная Task, а агент переходит в статус WAITING.
 5.  **Execution Phase**: `ActionExecutionSystem` маршрутизирует команды из буфера (клик мышью в ОС или вызов `on_click` внутри памяти).
 6.  **Telemetry Phase**: Обновление GUI (`GUIDebugSystem`), запись датасетов (`DatasetLoggerSystem`).
+
+> [!TIP]
+> **Углубленное изучение ядра**:
+> *   [Реализация иерархии сущностей](ecs_hierarchy_impl.md)
+> *   [Библиотека игровых компонентов](game_ecs_library.md)
 
 ## 3. Восприятие и Компьютерное Зрение (Perception Pipeline)
 
@@ -104,54 +111,47 @@ Behavior Tree не знает, какая модель подключена. У�
 *   **Perception View**: Мультиоконный или сеточный (CCTV) рендер экранов/пайплайнов с нулевым копированием (Zero-copy GPU рендер через DPG Texture Registry). Возможность переключать промежуточные слои CV (например, видеть только слой Canny Edges или Bounding Boxes YOLO).
 *   **Message Broker Sniffer**: Лог Pub/Sub трафика между агентами с подсветкой Dead Letter (недоставленных) сообщений.
 
-## 8. MLOps и Режимы Работы
+> [!TIP]
+> **Детали интерфейса**:
+> *   [Дизайн и модули God Mode](gui_layout_design.md)
+> *   [Визуализация иерархии в редакторе](ecs_hierarchy_gui.md)
 
-Движок поддерживает мгновенное переключение режимов для обучения нейросетей.
+**Подробнее о GUI**: См. [Дизайн раскладки и модулей GUI](gui_layout_design.md).
 
-*   **Production (Headless)**: Запуск в Docker (например, на Koyeb). Максимальный TPS, UI отключен.
-*   **Teacher Mode (Сбор датасетов)**:
-    *   BT агента ставится на паузу.
-    *   Оператор управляет средой (через перехват мыши в GUI).
-    *   `DatasetLoggerSystem` каждый тик сохраняет пару `[Perception_JSON, User_Action]` в HDF5/JSONL.
-    *   Интеграция с экспорт-пайплайном Label Studio -> Ultralytics -> ONNX.
-*   **Gymnasium Mode (Спортзал RL)**:
-    *   Движок оборачивается в стандартный интерфейс OpenAI Gym (`reset()`, `step(action)`).
-    *   Таймауты `asyncio.sleep` отключаются для турбо-скорости (Fast-Forward).
-    *   Оценка действий происходит через добавленный `RewardComponent`.
+## 8. Режимы Работы (Operation Modes)
 
-## 14. Режимы Работы (Operation Modes)
+Архитектура ECS позволяет кардинально менять поведение движка, просто изменяя состав активных Систем и параметры цикла времени. Движок поддерживает мгновенное переключение режимов для обучения нейросетей.
 
-Архитектура ECS позволяет кардинально менять поведение движка, просто изменяя состав активных Систем и параметры цикла времени.
-
-### 14.1. Mode: Architect & Debug (Режим Разработчика)
-Визуальное программирование и отладка.
+### 8.1. Mode: Architect & Debug (Режим Разработчика)
+Визуальное программирование и отладка. [Подробнее...](../modes/play_mode.md)
 *   **Системы**: Standard + `GUIDebugSystem`.
-*   **Время**: Ограничено (20-60 TPS). Доступны Pause/Step.
-*   **Фичи**: Hot-Reloading воркспейсов, "God Mode" (редактирование памяти), Zero-Copy Rendering (OpenCV -> Texture).
+*   **Фичи**: Hot-Reloading воркспейсов, "God Mode", Zero-Copy Rendering (OpenCV -> Texture).
 
-### 14.2. Mode: Production / Headless (Боевой серверный режим)
+### 8.2. Mode: Production / Headless (Боевой серверный режим)
 Фоновая работа без GUI. Идеально для Docker/Koyeb.
 *   **Системы**: Standard + `TelemetrySystem`. `GUIDebugSystem` отключена.
-*   **Время**: Строгий лимит (10-20 TPS) для экономии CPU.
-*   **Фичи**: REST API (FastAPI) для внешнего управления, метрики (Prometheus), автономный Fallback при сбоях LLM.
+*   **Фичи**: REST API (FastAPI) для внешнего управления, метрики (Prometheus).
 
-### 14.3. Mode: Teacher (Сбор датасетов)
-Студия захвата действий для Imitation Learning.
-*   **Системы**: `AI_BrainSystem` **отключена**. Включены `HumanInputSystem` и `DatasetLoggerSystem`.
-*   **Время**: Real-time (60 TPS).
-*   **Фичи**: Оператор управляет агентом через окно восприятия. Движок пишет пары `[Perception, Action]` в HDF5/JSONL для обучения моделей.
+### 8.3. Mode: Teacher (Сбор датасетов)
+Студия захвата действий для Imitation Learning. [Подробнее...](../modes/teacher_mode.md)
+*   **Системы**: `AI_BrainSystem` отключена. Включены `HumanInputSystem` и `DatasetLoggerSystem`.
+*   **Фичи**: Оператор управляет агентом через GUI. Движок пишет пары `[Perception, Action]` в HDF5/JSONL.
 
-### 14.4. Mode: Gymnasium (RL Спортзал)
-Симуляция для Reinforcement Learning (PPO, DQN).
-*   **Системы**: External-парсеров нет. Включены `InternalPhysicsSystem` и `EnvironmentJudgeSystem` (начисление наград).
-*   **Время**: Fast-Forward (Uncapped). `asyncio.sleep` отключен для макс. скорости.
-*   **Фичи**: Стандартный API `env.reset()`, `env.step()`. Параллельное обучение (векторизация) 100+ агентов в одной памяти.
+### 8.4. Mode: Gymnasium (RL Спортзал)
+Симуляция для Reinforcement Learning (PPO, DQN). [Подробнее...](../modes/gym_mode.md)
+*   **Системы**: Включены `InternalPhysicsSystem` и `EnvironmentJudgeSystem` (начисление наград).
+*   **Фичи**: Стандартный API `env.reset()`, `env.step()`. Векторизация 100+ агентов.
 
-## 15. Sample Project: Serpentine Snake AI
+### 8.5. Mode: Continuous Learning (Actor-Learner)
+Режим асинхронного онлайн-обучения в реальных I/O-средах. [Подробнее...](../modes/actor_learner.md)
+*   **Системы**: Standard + `EnvironmentJudgeSystem` + `ReplayBufferSystem`.
+*   **Фичи**: Отдельный процесс Learner обучает модель в реальном времени, Hot-Swapping весов ONNX.
+
+## 9. Sample Project: Serpentine Snake AI
 
 Этот сэмпл демонстрирует полный цикл: от создания внутренней симуляции (игры) до обучения агента (RL) и визуальной отладки. Игра живет исключительно в оперативной памяти ECS.
 
-### 15.1. Сборка Среды (Игра)
+### 9.1. Сборка Среды (Игра)
 Мы не используем внешние окна. Физика работает на компонентах:
 *   `GridPositionComponent`: Координаты x, y на сетке.
 *   `SnakeBodyComponent`: Очередь сегментов хвоста.
@@ -162,32 +162,32 @@ Behavior Tree не знает, какая модель подключена. У�
 1.  `SnakeLocomotionSystem`: Двигает голову каждый тик, обновляет очередь хвоста.
 2.  `SnakeCollisionSystem`: Логика игры (Съел яблоко -> Рост, Врезался -> Reset).
 
-### 15.2. Когнитивный Интерфейс
+### 9.2. Когнитивный Интерфейс
 Агент — это сущность с мозгом, подключенная к игре через стандартные интерфейсы.
 *   **Perception**: `InternalGridStateNode` сканирует ECS и строит JSON-матрицу (10x10), где 0=Пусто, 1=Тело, 2=Голова, 3=Яблоко.
 *   **Action**: `ChangeDirectionAction` ("UP", "DOWN"...). `ActionExecutionSystem` меняет `VelocityComponent` головы.
 
-### 15.3. Обучение (Gymnasium Mode)
+### 9.3. Обучение (Gymnasium Mode)
 Движок переходит в режим "Спортзала" (без GUI, без sleep).
 *   **Reward**: `EnvironmentJudgeSystem` начисляет +10 за яблоко, -10 за смерть, -0.1 за шаг.
 *   **Результат**: RL-модель (PPO) обучается за 5 минут (1M+ шагов).
 
-### 15.4. Визуализация (God Mode)
+### 9.4. Визуализация (God Mode)
 В режиме Architect включается `InternalRenderSystem` (DearPyGui).
 *   **Game View**: Отрисовка змейки и яблока прямоугольниками.
 *   **Introspection**: Рядом видна "сырая" матрица восприятия, которую видит сеть.
 *   **Debug**: Можно поставить паузу, передвинуть яблоко вручную (изменив компонент), сделать шаг и проверить реакцию сети.
 
-## 16. Управление Сценами и Реестрами (Scene & Registry Management)
+## 10. Управление Сценами и Реестрами (Scene & Registry Management)
 
 Для реализации функционала, подобного игровым движкам (Unity/Unreal), где можно динамически добавлять компоненты и настраивать сцены, вводится система Реестров и Сцен.
 
-### 16.1. Глобальные Реестры (Auto-Registration)
+### 10.1. Глобальные Реестры (Auto-Registration)
 Чтобы UI и сериализатор знали о существовании компонентов и систем без хардкода, используются декораторы:
 *   `@register_component`: Регистрирует класс данных. Позволяет UI отображать список "Add Component".
 *   `@register_system(phase=...)`: Регистрирует логику и привязывает её к фазе (Physics, Perception).
 
-### 16.2. Формат Сцены (Scene Format)
+### 10.2. Формат Сцены (Scene Format)
 Файл `.json`, описывающий полную конфигурацию запуска (Карта + Логика):
 ```json
 {
@@ -197,12 +197,12 @@ Behavior Tree не знает, какая модель подключена. У�
 }
 ```
 
-### 16.3. Headless Loader (CLI)
+### 10.3. Headless Loader (CLI)
 Запуск движка с конкретной картой через консоль:
 `python main.py --scene levels/level_01.json --mode HEADLESS`
 Это позволяет тренировать агентов на разных конфигурациях мира без изменения кода.
 
-## 9. Система Персистентности (Persistence System)
+## 11. Система Персистентности (Persistence System)
 
 Архитектура ECS + Pydantic позволяет полностью разделить логику и данные, делая сериализацию тривиальной. Персистентность делится на три уровня:
 
@@ -231,3 +231,13 @@ Behavior Tree не знает, какая модель подключена. У�
 3.  **Deserialize World**: Очистка памяти и восстановление сущностей из JSON.
 4.  **Rebuild GUI**: Генерация новых виджетов под загруженные данные.
 5.  **Resume Engine**: Запуск цикла.
+
+---
+
+## 12. Планирование и Ссылки
+
+Для отслеживания прогресса и технических инсайтов используйте следующие документы:
+*   [**Roadmap проекта**](../planning/roadmap.md): Стратегические фазы развития.
+*   [**Список задач (Backlog)**](../planning/tasks.md): Детальные задачи с приоритетами P0-P3.
+*   [**ML Insights**](../api_ml/ml_integration_insights.md): Детали реализации Hot-Swapping и версионирования моделей.
+*   [**Стандарты документации**](../dev_docs_rules.md): Правила именования и структуры файлов.

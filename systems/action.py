@@ -30,6 +30,10 @@ class ActionExecutionSystem(System):
             status = "FAILURE"
 
             try:
+                # Get BrainComponent for I/O status management
+                from components.core import BrainComponent
+                brain = world.get_component(entity, BrainComponent)
+
                 # Handle Specific Actions (Command Pattern dispatch)
                 if ChangeDirectionAction and isinstance(current_action, ChangeDirectionAction):
                     status = self._handle_snake_move(world, entity, current_action)
@@ -41,6 +45,12 @@ class ActionExecutionSystem(System):
                 if status in ["SUCCESS", "FAILURE"]:
                     buffer.queue.pop(0)
                     buffer.current_action_status = status
+                    
+                    # If brain exists and this was an external action, wait for next frame
+                    if brain and getattr(current_action, "target_env", "") == "EXTERNAL_OS":
+                        brain.status = "WAITING_FOR_IO"
+                        logger.debug(f"Entity {entity} brain locked WAITING_FOR_IO after OS action.")
+
                 elif status == "RUNNING":
                     buffer.current_action_status = "RUNNING"
 

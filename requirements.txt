@@ -1,0 +1,14 @@
+numpy>=1.24.0
+moderngl>=5.8.0
+glfw>=2.5.9
+PyGLM>=2.7.0
+httpx==0.28.1
+pydantic==2.12.5
+mss>=9.0.1
+opencv-python>=4.8.1
+onnxruntime>=1.16.3
+ultralytics>=8.0.0
+pyautogui>=0.9.54
+dearpygui>=1.10.0
+fastapi>=0.103.0
+uvicorn>=0.23.0

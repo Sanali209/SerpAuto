@@ -15,6 +15,7 @@ class MessageRouterSystem(System):
     Orchestrates message passing between agents (Pub/Sub + Direct).
     Run this at the BEGINNING of the tick (Phase 1).
     """
+    _history: List[Message] = []
 
     async def update(self, world: World, dt: float):
         # 1. Collect all outgoing messages from all agents
@@ -69,4 +70,9 @@ class MessageRouterSystem(System):
                         sub_mailbox = world.get_component(sub_entity, MailboxComponent)
                         if sub_mailbox:
                             # Deep copy CRITICAL for broadcast to prevent shared state bugs
-                            sub_mailbox.inbox.append(message.model_copy(deep=True))
+                            msg_copy = message.model_copy(deep=True)
+                            sub_mailbox.inbox.append(msg_copy)
+                            # Log for Sniffer
+                            MessageRouterSystem._history.append(msg_copy)
+                            if len(MessageRouterSystem._history) > 100:
+                                MessageRouterSystem._history.pop(0)

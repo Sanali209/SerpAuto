@@ -5,11 +5,11 @@ from core.component import BaseComponent
 from core.registry import register_component
 
 @register_component()
-class AgentMetaComponent(BaseComponent):
-    """Agent identity: Name, role, status"""
-    name: str = "Agent_01"
-    role: str = "Scraper" # Parser, Warrior, Analyst
-    status: str = "IDLE" # ACTIVE, ERROR, WAITING
+class MetadataComponent(BaseComponent):
+    """Generic entity metadata: Human-readable name, tags, etc."""
+    name: str = "New Entity"
+    tags: List[str] = Field(default_factory=list)
+    color: List[float] = [1.0, 1.0, 1.0, 1.0] # For GUI highlighting
 
 class Message(BaseModel):
     """Unit of information exchange between agents"""
@@ -43,8 +43,47 @@ class PerceptionComponent(BaseComponent):
     visible_entities: List[dict] = Field(default_factory=list) # What we see right now
     raw_context: Dict[str, Any] = Field(default_factory=dict) # Parsed JSON goes here
     raw_frame_id: str | None = None
+    processed_frame: Any = Field(default=None, exclude=True) # np.ndarray for visual debugging
 
 @register_component()
 class BrainComponent(BaseComponent):
-    status: str = "IDLE" # IDLE, RUNNING_BT, WAITING_LLM
+    status: str = "IDLE" # IDLE, THINKING, WAITING_FOR_IO, READY_TO_LEARN
     context: Dict[str, Any] = Field(default_factory=dict)
+    bt_root: Any = Field(default=None, exclude=True) # Live BehaviorTreeNode instance
+    last_state: Any = None  # Запоминаем S_t
+    last_action: Any = None # Запоминаем A_t
+
+@register_component()
+class MeshComponent(BaseComponent):
+    """3D geometry reference (VAO/VBO data)"""
+    model_path: str = "assets/models/cube.obj"
+    vao_id: str | None = None
+
+@register_component()
+class MaterialComponent(BaseComponent):
+    """Shader properties and textures"""
+    diffuse_color: List[float] = [1.0, 1.0, 1.0, 1.0]
+    shader_name: str = "default_lit"
+    texture_path: str | None = None
+
+@register_component()
+class CameraComponent(BaseComponent):
+    """View and Projection matrices for rendering"""
+    is_active: bool = True
+    fov: float = 45.0
+    near: float = 0.1
+    far: float = 1000.0
+
+@register_component()
+class PlayerControllerComponent(BaseComponent):
+    """Tag to identify the human-controlled entity"""
+    is_active: bool = True
+
+@register_component()
+class RewardComponent(BaseComponent):
+    """State of rewards for Reinforcement Learning"""
+    current_reward: float = 0.0
+    cumulative_reward: float = 0.0
+    total_score: float = 0.0
+    is_terminated: bool = False
+    is_truncated: bool = False
