@@ -10,17 +10,19 @@ This report outlines these inconsistencies, provides an architectural critique, 
 
 ---
 
-## 1. Critical Inconsistencies (Code vs. Docs)
+## 1. Gap Analysis: Documentation vs. Codebase
 
-The following table highlights areas where the documentation "hallucinates" features or contradicts the implementation.
+The following table serves as a comprehensive "Gap Analysis", highlighting areas where the documentation "hallucinates" features or contradicts the implementation.
 
-| Feature / Component | Documentation Claim | Actual Codebase Reality | Severity |
-| :--- | :--- | :--- | :--- |
-| **Hierarchy System** | `ecs_hierarchy_impl.md` describes a `HierarchyComponent` and `TransformHierarchySystem` in detail, calling it a "core solution". | **IMPLEMENTED** (as of this audit). `components/spatial.py` and `systems/transform.py` now match the documentation. | 🟢 Resolved |
-| **Internal Renderer** | `README.md` and `engine_overview.md` refer to `InternalRenderSystem` (DearPyGui). | **AMBIGUOUS**. There is no class named `InternalRenderSystem`. Visualization is handled via ad-hoc logic in `systems/gui.py` and `SystemInspector`. | 🟠 High |
-| **ModernGL** | `ecs_hierarchy_impl.md` implies ModernGL is a future goal or specific to "Play Mode". | **IMPLEMENTED**. `ModernGLRenderSystem` exists in `systems/render_modern.py` and is integrated into `main.py`. The docs under-represent its actual state. | 🟡 Medium |
-| **Gym Observation** | `gym_mode.md` claims `SerpentineGymEnv` returns a 10x10 grid matrix (Snake specific). | **PLACEHOLDER**. `core/env_wrapper.py` returns a hardcoded `(64, 64, 3)` zero-filled array. The logic to extract the grid is missing. | 🟠 High |
-| **Serialization** | `README.md` claims JSON serialization. | **INCONSISTENT**. `World` serialization logic often dumps Pydantic models to dicts, but `ReplayBufferSystem` writes to JSONL. | 🟡 Medium |
+| Domain | Feature / Component | Documentation Claim | Actual Codebase Reality | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Core** | **Hierarchy System** | `ecs_hierarchy_impl.md` describes a `HierarchyComponent` and `TransformHierarchySystem` in detail, calling it a "core solution". | **IMPLEMENTED** (as of this audit). `components/spatial.py` and `systems/transform.py` now match the documentation. | 🟢 Resolved |
+| **Rendering** | **Internal Renderer** | `README.md` and `engine_overview.md` refer to `InternalRenderSystem` (DearPyGui). | **AMBIGUOUS**. There is no class named `InternalRenderSystem`. Visualization is handled via ad-hoc logic in `systems/gui.py` and `SystemInspector`. | 🟠 High Gap |
+| **Rendering** | **ModernGL** | `ecs_hierarchy_impl.md` implies ModernGL is a future goal or specific to "Play Mode". | **IMPLEMENTED**. `ModernGLRenderSystem` exists in `systems/render_modern.py` and is integrated into `main.py`. The docs under-represent its actual state. | 🟡 Medium Gap |
+| **RL** | **Gym Observation** | `gym_mode.md` claims `SerpentineGymEnv` returns a 10x10 grid matrix (Snake specific). | **PLACEHOLDER**. `core/env_wrapper.py` returns a hardcoded `(64, 64, 3)` zero-filled array. The logic to extract the grid is missing. | 🟠 High Gap |
+| **Perception** | **OCR Node** | `engine_overview.md` lists `OCRNode` (Docling/Tesseract) as a core perception module. | **MISSING**. `perception/cv_nodes.py` contains `YOLONode` but no OCR implementation. | 🔴 Critical Gap |
+| **Perception** | **Grid Mapper** | `engine_overview.md` lists `GridMapperNode` for navigation. | **MISSING**. Navigation mesh generation logic is absent from `perception/`. | 🔴 Critical Gap |
+| **Tooling** | **BT Editor** | `architecture/gui_layout_design.md` describes a visual "Brain Editor". | **MISSING**. `systems/gui.py` only inspects data. No visual graph editor for Behavior Trees exists. | 🔴 Critical Gap |
 
 ---
 
@@ -144,6 +146,7 @@ The documentation does not adequately describe the internal mechanics of the Beh
 1.  **Fix Gym Wrapper:** Remove the hardcoded `(64,64,3)` observation and implement actual grid extraction from `PerceptionComponent`.
 2.  **Hierarchy Maintenance:** Maintain the newly implemented `HierarchyComponent` and `TransformHierarchySystem` (verify with `tests/test_hierarchy.py`).
 3.  **Standard Node Library:** Implement missing BT nodes (`Inverter`, `WaitNode`, `CheckBlackboard`).
+4.  **Perception Nodes:** Implement `OCRNode` and `GridMapperNode` in `perception/`.
 
 ### Phase 3: Professionalization (P2)
 1.  **Docstrings:** Ensure all Python classes in `src/` have docstrings that match the updated documentation.

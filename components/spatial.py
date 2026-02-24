@@ -35,6 +35,10 @@ class TransformComponent(BaseComponent):
     world_scale_y: float = 1.0
 
     # Legacy/Flat fields (mapped to World for backward compatibility)
+    width: float = 0.0
+    height: float = 0.0
+    layer: int = 0
+
     @property
     def x(self) -> float: return self.world_x
     @x.setter
