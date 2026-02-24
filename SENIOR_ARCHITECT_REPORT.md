@@ -4,7 +4,7 @@
 
 The `des_docs/` documentation describes a highly ambitious, data-driven Entity-Component-System (ECS) engine ("Serpentine") capable of handling both high-speed Reinforcement Learning (RL) and complex real-world automation tasks.
 
-However, a critical review reveals significant **divergence between the documentation and the actual codebase**. Several key features described in detail (e.g., the Hierarchy System) are completely missing from the implementation. Additionally, the documentation suffers from a lack of standardization, mixing languages (Russian/English) and terminology, which severely impacts the Developer Experience (DX).
+However, a critical review reveals significant **divergence between the documentation and the actual codebase**. Several key features described in detail (e.g., the Hierarchy System) were missing from the implementation, though this has been partially addressed during this audit. Additionally, the documentation suffers from a lack of standardization, mixing languages (Russian/English) and terminology, which severely impacts the Developer Experience (DX).
 
 This report outlines these inconsistencies, provides an architectural critique, and offers a concrete roadmap for remediation.
 
@@ -16,7 +16,7 @@ The following table highlights areas where the documentation "hallucinates" feat
 
 | Feature / Component | Documentation Claim | Actual Codebase Reality | Severity |
 | :--- | :--- | :--- | :--- |
-| **Hierarchy System** | `ecs_hierarchy_impl.md` describes a `HierarchyComponent` and `TransformHierarchySystem` in detail, calling it a "core solution". | **MISSING**. Neither the component nor the system exists in `src/`. | 🔴 Critical |
+| **Hierarchy System** | `ecs_hierarchy_impl.md` describes a `HierarchyComponent` and `TransformHierarchySystem` in detail, calling it a "core solution". | **IMPLEMENTED** (as of this audit). `components/spatial.py` and `systems/transform.py` now match the documentation. | 🟢 Resolved |
 | **Internal Renderer** | `README.md` and `engine_overview.md` refer to `InternalRenderSystem` (DearPyGui). | **AMBIGUOUS**. There is no class named `InternalRenderSystem`. Visualization is handled via ad-hoc logic in `systems/gui.py` and `SystemInspector`. | 🟠 High |
 | **ModernGL** | `ecs_hierarchy_impl.md` implies ModernGL is a future goal or specific to "Play Mode". | **IMPLEMENTED**. `ModernGLRenderSystem` exists in `systems/render_modern.py` and is integrated into `main.py`. The docs under-represent its actual state. | 🟡 Medium |
 | **Gym Observation** | `gym_mode.md` claims `SerpentineGymEnv` returns a 10x10 grid matrix (Snake specific). | **PLACEHOLDER**. `core/env_wrapper.py` returns a hardcoded `(64, 64, 3)` zero-filled array. The logic to extract the grid is missing. | 🟠 High |
@@ -91,12 +91,11 @@ The following table highlights areas where the documentation "hallucinates" feat
     -   Draft `ARCHITECTURE.md` (consolidating `engine_overview.md`).
     -   Draft `DATA_FLOW.md` (visualizing the loop).
     -   Draft `GLOSSARY.md` (defining terms).
-2.  **Delete/Update Hallucinations:** Remove `HierarchyComponent` docs OR implement the component immediately.
-3.  **Translate:** Convert all Russian text in `des_docs/` to English.
+2.  **Translate:** Convert all Russian text in `des_docs/` to English.
 
 ### Phase 2: Synchronization (P1)
 1.  **Fix Gym Wrapper:** Remove the hardcoded `(64,64,3)` observation and implement actual grid extraction from `PerceptionComponent`.
-2.  **Implement Hierarchy:** If it is truly core to the design, implement `HierarchyComponent` in `components/core.py` and the system in `systems/transform.py`.
+2.  **Hierarchy Maintenance:** Maintain the newly implemented `HierarchyComponent` and `TransformHierarchySystem` (verify with `tests/test_hierarchy.py`).
 
 ### Phase 3: Professionalization (P2)
 1.  **Docstrings:** Ensure all Python classes in `src/` have docstrings that match the updated documentation.
