@@ -72,15 +72,41 @@ The following table highlights areas where the documentation "hallucinates" feat
 
 ---
 
-## 4. UX/DX Recommendations
+## 4. Deep Dive: Tooling & AI Architecture Gaps
 
-### 4.1. "Getting Started" is Missing
-*   **Problem:** There is no "Hello World" or "First Agent" tutorial. The `README.md` jumps straight into architecture.
-*   **Solution:** Create `docs/tutorials/01_hello_snake.md` showing how to spawn 1 entity and move it.
+A profound gap exists between the "Serpentine Vision" (as documented) and the current "Serpentine Reality" (as coded), specifically in Debugging, Tooling, and AI introspection.
 
-### 4.2. Tooling
-*   **Problem:** No CLI tool to scaffold a new System or Component.
-*   **Solution:** Add a `scripts/scaffold.py` to generate the boilerplate for a new System (following the `System` base class).
+### 4.1. Gap 1: The "Invisible" Engine (ECS vs. GUI)
+*   **Analysis:** The ECS architecture stores rich state (e.g., `HierarchyComponent` trees, `SpatialGridComponent` weights, `BrainComponent` history). However, the current `GUIDebugSystem` (via `systems/gui.py`) and `AutoUIBuilder` provide only a **flat, field-by-field inspector**.
+*   **Impact:**
+    *   You cannot visualize the Parent-Child relationship (it's just a UUID string in a text field).
+    *   You cannot see the "Map" (Spatial Grid) except as raw integer arrays.
+*   **Remediation:** Implement specialized **Visualizers** per component type, not just a generic `AutoUI`.
+    *   *Hierarchy*: Use `dpg.add_tree_node` recursively in `World Outliner` (partially implemented but needs robustness).
+    *   *Grid*: Use `dpg.draw_rect` to render the navigation mesh overlay.
+
+### 4.2. Gap 2: The Behavior Tree Black Box
+*   **Analysis:** `BrainComponent` contains a `bt_root` (the root node object) and `context` (Blackboard). The documentation promises a **"Live BT Tracer"** with pulsing nodes.
+*   **Reality:** The code has **zero visualization** for the BT structure. You can see the *result* (Action in queue) and the *input* (Perception), but the *decision path* (which Sequence failed? which Selector succeeded?) is completely opaque.
+*   **Critique:** Debugging a complex agent without a visual trace is impossible. You cannot know if an agent failed because of a "Low Health" check or a "No Ammo" check without adding `print()` statements everywhere.
+*   **Remediation:**
+    *   **Traceable Nodes:** Decorate BT `tick()` methods to emit events (`NodeEnter`, `NodeSuccess`, `NodeFailure`).
+    *   **Visualizer:** Implement a `BTVisualizerSystem` using `dpg.add_node_editor` (reusing logic from `PipelineNodeEditor`) to draw the tree and highlight the active path in real-time.
+
+### 4.3. Gap 3: Missing Visual Editors
+*   **Analysis:** The documentation describes a "Pipeline Node Editor" (implemented in `systems/gui_nodes.py`) and a "Brain Editor".
+*   **Reality:** While the Pipeline Editor exists, there is **no Behavior Tree Editor**. Agents are likely defined in code or JSON.
+*   **Critique:** "Zero-code" is a core value proposition of the docs, but currently, changing a behavior requires code changes.
+*   **Remediation:** Create a generic `NodeGraphEditor` that can handle both Perception DAGs and Behavior Trees, serializing them to JSON blueprints.
+
+### 4.4. Gap 4: Action Execution Tracing
+*   **Analysis:** The loop `Perception -> Brain -> ActionBuffer -> ActionExecution` is the heart of the engine.
+*   **Reality:** There is no tool to "step" through this one frame at a time and see the data transformation.
+*   **Critique:** If an action fails (e.g., "Click" does nothing), the developer doesn't know if:
+    1.  The Brain didn't emit it?
+    2.  The `ActionBuffer` dropped it (full queue)?
+    3.  The `ActionExecutionSystem` failed to execute it (OS error)?
+*   **Remediation:** Implement an **Action Log / Timeline** in the GUI. Every action should have a lifecycle state (`CREATED` -> `QUEUED` -> `EXECUTING` -> `FINISHED/FAILED`) and be displayed in a timeline view.
 
 ---
 
@@ -100,6 +126,10 @@ The following table highlights areas where the documentation "hallucinates" feat
 ### Phase 3: Professionalization (P2)
 1.  **Docstrings:** Ensure all Python classes in `src/` have docstrings that match the updated documentation.
 2.  **Diagrams:** Replace text descriptions of the loop with a Mermaid diagram in `architecture/engine_overview.md` (or the new `ARCHITECTURE.md`).
+
+### Phase 4: Advanced Tooling (P3 - New)
+1.  **Implement `BTVisualizerSystem`:** Use DPG Node Editor to visualize the active Behavior Tree state.
+2.  **Implement Action Timeline:** A GUI panel to trace the lifecycle of actions.
 
 ---
 
