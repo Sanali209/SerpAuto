@@ -150,6 +150,10 @@ class SerpentineEngine:
             self.is_running = False
             logger.info("Engine stopped.")
 
+    async def tick(self, dt: float):
+        """Public method to run one tick (for manual stepping/Gym)."""
+        return await self._tick(dt)
+
     async def _tick(self, dt: float):
         """Executes one tick of the engine loop."""
 

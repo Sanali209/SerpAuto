@@ -58,6 +58,13 @@ class World:
         # Invalidate queries containing this component type
         self._invalidate_queries(comp_type)
 
+    def clear(self):
+        """Clears all entities and components from the world."""
+        self._entities.clear()
+        self._components.clear()
+        self._query_cache.clear()
+        logger.info("World cleared.")
+
     def remove_component(self, entity_id: EntityID, component_type: Type[BaseComponent]):
         if component_type in self._components and entity_id in self._components[component_type]:
             del self._components[component_type][entity_id]
