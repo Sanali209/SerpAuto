@@ -8,6 +8,7 @@ from uuid import UUID
 from serpentine.core.component import BaseComponent
 from serpentine.core.registry import Registry
 from serpentine.perception.types import Observation
+from serpentine.mind.intent import Intent
 
 @Registry.register_component
 class PerceptionComponent(BaseComponent):
@@ -26,23 +27,17 @@ class PerceptionComponent(BaseComponent):
         return self.observations.get(key)
 
 
-class BaseAction(BaseModel):
-    """Base class for all actions."""
-    type: str
-    target: Optional[str] = None
-    params: Dict[str, Any] = Field(default_factory=dict)
-
 @Registry.register_component
 class ActionBufferComponent(BaseComponent):
     """
-    Queue for pending actions to be executed by the ActionExecutionSystem.
+    Queue for pending actions (Intents) to be executed by the ActionExecutionSystem.
     """
-    action_queue: List[BaseAction] = Field(default_factory=list)
+    action_queue: List[Intent] = Field(default_factory=list)
 
-    def enqueue(self, action: BaseAction):
+    def enqueue(self, action: Intent):
         self.action_queue.append(action)
 
-    def dequeue(self) -> Optional[BaseAction]:
+    def dequeue(self) -> Optional[Intent]:
         if self.action_queue:
             return self.action_queue.pop(0)
         return None

@@ -11,34 +11,15 @@ except ImportError:
 from serpentine.core.registry import Registry, SystemPhase, EngineMode
 from serpentine.systems.base import System
 from serpentine.core.world import World
-from serpentine.perception.components import ActionBufferComponent, BaseAction
+from serpentine.perception.components import ActionBufferComponent
+from serpentine.mind.intent import Intent, ClickIntent, MoveIntent, KeyIntent
 
 logger = logging.getLogger(__name__)
-
-class ClickAction(BaseAction):
-    """Simulates a mouse click."""
-    type: str = "click"
-    x: int
-    y: int
-    button: str = "left"
-
-class MoveAction(BaseAction):
-    """Simulates mouse movement."""
-    type: str = "move"
-    x: int
-    y: int
-    duration: float = 0.0
-
-class KeyAction(BaseAction):
-    """Simulates keyboard input."""
-    type: str = "key"
-    key: str
-    action: str = "press"  # press, down, up
 
 @Registry.register_system(phase=SystemPhase.EXECUTION, modes=[EngineMode.ARCHITECT, EngineMode.TEACHER, EngineMode.PRODUCTION])
 class ActionExecutionSystem(System):
     """
-    Executes pending actions from the ActionBufferComponent using PyAutoGUI.
+    Executes pending actions (Intents) from the ActionBufferComponent using PyAutoGUI.
     """
     def __init__(self, tick_rate: int = None):
         super().__init__(tick_rate=tick_rate)
@@ -61,11 +42,11 @@ class ActionExecutionSystem(System):
             if action:
                 self._execute(action)
 
-    def _execute(self, action: BaseAction):
+    def _execute(self, action: Intent):
         try:
             if action.type == "click":
                 # Validate coordinates
-                if isinstance(action, ClickAction) or (hasattr(action, 'x') and hasattr(action, 'y')):
+                if isinstance(action, ClickIntent):
                     # Check bounds? PyAutoGUI handles screen bounds usually.
                     pyautogui.click(x=action.x, y=action.y, button=getattr(action, 'button', 'left'))
                 else:
@@ -77,7 +58,7 @@ class ActionExecutionSystem(System):
                         pyautogui.click(x=x, y=y, button=btn)
 
             elif action.type == "move":
-                if isinstance(action, MoveAction):
+                if isinstance(action, MoveIntent):
                     pyautogui.moveTo(action.x, action.y, duration=action.duration)
                 else:
                     x = action.params.get('x')
@@ -87,7 +68,7 @@ class ActionExecutionSystem(System):
                         pyautogui.moveTo(x, y, duration=dur)
 
             elif action.type == "key":
-                if isinstance(action, KeyAction):
+                if isinstance(action, KeyIntent):
                     key = action.key
                     act = action.action
                     if act == "press":

@@ -30,10 +30,17 @@ class SystemMetadata(BaseModel):
     priority: int = 0  # Higher runs first within phase
     tick_rate: Optional[int] = None  # Specific TPS for this system, None = Engine TPS
 
+class NodeMetadata(BaseModel):
+    category: str
+    icon: str
+    description: str
+
 class Registry:
     _components: Dict[str, Type[BaseComponent]] = {}
     _systems: Dict[str, Type[Any]] = {}  # Type[System] but System is not defined yet
     _system_metadata: Dict[str, SystemMetadata] = {}
+    _nodes: Dict[str, Type[Any]] = {}
+    _node_metadata: Dict[str, NodeMetadata] = {}
 
     @classmethod
     def register_component(cls, component_cls: Type[BaseComponent]) -> Type[BaseComponent]:
@@ -89,3 +96,30 @@ class Registry:
     @classmethod
     def get_all_systems(cls) -> Dict[str, Type[Any]]:
         return cls._systems.copy()
+
+    @classmethod
+    def register_node(cls, category: str, icon: str = "🧩", description: str = ""):
+        """
+        Decorator to register a Behavior Tree Node class.
+        """
+        def wrapper(node_cls: Type[Any]) -> Type[Any]:
+            cls._nodes[node_cls.__name__] = node_cls
+            cls._node_metadata[node_cls.__name__] = NodeMetadata(
+                category=category,
+                icon=icon,
+                description=description
+            )
+            return node_cls
+        return wrapper
+
+    @classmethod
+    def get_node(cls, name: str) -> Optional[Type[Any]]:
+        return cls._nodes.get(name)
+
+    @classmethod
+    def get_all_nodes(cls) -> Dict[str, Type[Any]]:
+        return cls._nodes.copy()
+
+    @classmethod
+    def get_node_metadata(cls, name: str) -> Optional[NodeMetadata]:
+        return cls._node_metadata.get(name)
