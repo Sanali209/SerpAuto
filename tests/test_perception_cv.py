@@ -67,8 +67,9 @@ from datetime import datetime
 # Now import modules under test
 from serpentine.perception.types import Observation
 from serpentine.perception.nodes import CropNode, GrayscaleNode, DOMParserNode, GridMapperNode
-from serpentine.perception.components import PerceptionComponent, ActionBufferComponent, BaseAction
-from serpentine.perception.actions import ClickAction, MoveAction, KeyAction, ActionExecutionSystem
+from serpentine.perception.components import PerceptionComponent, ActionBufferComponent
+from serpentine.mind.intent import Intent as BaseAction, ClickIntent as ClickAction, MoveIntent as MoveAction, KeyIntent as KeyAction
+from serpentine.perception.actions import ActionExecutionSystem
 from serpentine.perception.pipeline import PerceptionPipelineSystem
 from serpentine.perception.ingestion import SensoryInputSystem
 from serpentine.core.world import World
