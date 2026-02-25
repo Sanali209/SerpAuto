@@ -97,3 +97,29 @@ graph TD
     A[Perception] -->|Observation| B(Brain)
     B -->|Intent| C(Action)
 ```
+
+## 6. Documenting Technical Debt & Stubs
+
+In the rare case where temporary code is necessary (e.g., a mock waiting for an external API), you **must** document it.
+
+### 6.1. The "Why" and "When"
+A stub without explanation is a bug. Your docstring must explain:
+1.  **Limitation**: What is missing?
+2.  **Reason**: Why is it missing now? (e.g., "Waiting on Issue #42")
+3.  **Impact**: What happens if the user calls this?
+
+### 6.2. Example: Explicit Stub
+```python
+def fetch_user_data(user_id: str) -> dict:
+    """
+    [TEMPORARY] Returns mock data for offline development.
+
+    TODO(jules): Connect to UserAPI (Issue #101) once VPN is stable.
+
+    Returns:
+        dict: Hardcoded user profile.
+    """
+    # Explicit warning log is mandatory for runtime awareness
+    logger.warning("Using MOCK fetch_user_data - do not use in production!")
+    return {"name": "Test User", "role": "admin"}
+```

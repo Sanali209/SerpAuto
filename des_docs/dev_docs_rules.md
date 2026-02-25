@@ -26,10 +26,17 @@ Every design document should ideally contain the following sections:
 *   **Tone**: Professional and technical. Avoid conversational logs (chat outputs) in final design documents unless as a "Design Discovery" appendix.
 *   **Formatting**: Use GitHub-flavored Markdown. Bold important components like `TransformComponent`.
 
-## 6. Standardized Terminology
+## 5. Standardized Terminology
 To ensure the engine speaks a unified language, use the following terms in all documentation:
 - **Observation**: Output of Perception (What the agent sees).
 - **Intent**: Output of Mind (What the agent wants).
 - **Command**: Output of Execution (What the engine does).
 - **Snapshot**: A serialized World state for persistence.
 - **Registry V2**: The metadata discovery layer for systems and components.
+
+## 6. Temporary Code & Stubs (Critical)
+The project has a **Zero Tolerance Policy** for undocumented temporary code.
+
+*   **No Silent Stubs**: Functions with `pass` or `return None` must have a docstring explaining *why* they are empty and *when* they will be implemented.
+*   **Marking**: Use `TODO(user): [Issue #123] Reason` for any temporary logic.
+*   **Documentation**: If a feature is partial (e.g., "OCR Node works but only for digits"), this limitation must be explicitly stated in its documentation file.

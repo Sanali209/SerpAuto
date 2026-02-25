@@ -34,6 +34,7 @@ Before submitting a PR, ensure you have:
 - [ ] Added unit tests for new functionality.
 - [ ] Updated relevant documentation in `des_docs/`.
 - [ ] Verified no new dependencies were added (unless discussed).
+- [ ] **Verified NO undocumented temporary code** (no silent `pass` or `TODO`).
 - [ ] Checked for sensitive data (API keys) in the code.
 
 ## 5. Reporting Issues
