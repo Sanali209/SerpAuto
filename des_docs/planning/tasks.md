@@ -300,3 +300,17 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P2** Implement **Global Swarm Roster** (System-wide health table).
 *   [ ] **P2** Implement **Action Execution Timeline** (Gantt view).
 *   [ ] **P2** Implement **Imitation Learning Loss Monitor** (Shadow mode diffs).
+
+---
+
+## Phase 16: Knowledge & Documentation ([**Guide**](../guides/documentation_guide.md))
+
+### 16.1 Developer Guides (Internal)
+*   [ ] **P1** Update `SYSTEM_IMPLEMENTATION_GUIDE` with new Registry V2 patterns.
+*   [ ] **P1** Create standard Pydantic docstring templates for IDEs.
+*   [ ] **P2** Document the "Consolidation Strategy" changes in `ARCHITECTURE.md`.
+
+### 16.2 User Guides (External)
+*   [ ] **P1** Write "My First Agent" tutorial (Snake AI breakdown).
+*   [ ] **P2** Create "Custom Component" How-To.
+*   [ ] **P2** Create "Adding a new Perception Node" How-To.

@@ -26,7 +26,9 @@ Welcome to the internal design documentation for the Serpentine Engine. This fol
 *   [**Phase 12: Core Modernization**](guides/phases/phase_12_modernization.md)
 *   [**Phase 13: Visual Graph Editors**](guides/phases/phase_13_graph_editors.md)
 *   [**Phase 14: Analytics & Monitoring**](guides/phases/phase_14_analytics.md)
-*   [**Framework Consolidation Strategy**](planning/consolidation_strategy.md)
+*   [**Phase 15: Framework Consolidation**](planning/consolidation_strategy.md)
+*   [**Phase 16: Knowledge & Documentation**](guides/documentation_guide.md)
+*   [**Phase Guide Template**](guides/phases/phase_template.md)
 
 ## 🏗️ Core Architecture
 *   [**Engine Overview**](architecture/engine_overview.md): The main design document (ECS, Loop, Perception).
