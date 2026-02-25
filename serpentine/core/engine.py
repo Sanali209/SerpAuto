@@ -9,12 +9,14 @@ from serpentine.core.registry import Registry, EngineMode, SystemPhase
 from serpentine.systems.base import System
 from serpentine.utils.logging import configure_logging
 from serpentine.core.event_bus import GUIEventBus
+from serpentine.modes import ArchitectMode, ProductionMode, GymnasiumMode, TeacherMode, ModeStrategy
 
 logger = configure_logging()
 
 class SerpentineEngine:
     def __init__(self, mode: EngineMode = EngineMode.ARCHITECT, target_tps: int = 60):
         self.mode = mode
+        self._mode_strategy: ModeStrategy = self._create_mode_strategy(mode)
         self.world = World()
         self.is_running = False
         self.paused = False
@@ -34,6 +36,17 @@ class SerpentineEngine:
         # Instantiate systems for this mode
         self.systems: Dict[SystemPhase, List[System]] = {}
         self._initialize_systems()
+
+    def _create_mode_strategy(self, mode: EngineMode) -> ModeStrategy:
+        mode_map = {
+            EngineMode.ARCHITECT: ArchitectMode,
+            EngineMode.PRODUCTION: ProductionMode,
+            EngineMode.GYMNASIUM: GymnasiumMode,
+            EngineMode.TEACHER: TeacherMode,
+        }
+        strategy_cls = mode_map.get(mode, ArchitectMode)
+        logger.info(f"Using mode strategy: {strategy_cls.__name__}")
+        return strategy_cls()
 
     def play(self):
         self.paused = False
@@ -83,10 +96,10 @@ class SerpentineEngine:
 
     def _initialize_systems(self):
         """Initializes systems based on the current engine mode."""
-        logger.info(f"Initializing engine in {self.mode} mode...")
+        logger.info(f"Initializing engine in {self.mode} mode using {self._mode_strategy.__class__.__name__}...")
 
         for phase in SystemPhase:
-            system_classes = Registry.get_systems_for_phase(phase, self.mode)
+            system_classes = self._mode_strategy.get_systems(phase)
             initialized_systems = []
 
             for cls in system_classes:
