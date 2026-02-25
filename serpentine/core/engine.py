@@ -28,7 +28,22 @@ class SerpentineEngine:
 
         for phase in SystemPhase:
             system_classes = Registry.get_systems_for_phase(phase, self.mode)
-            self.systems[phase] = [cls() for cls in system_classes]
+            initialized_systems = []
+
+            for cls in system_classes:
+                metadata = Registry._system_metadata.get(cls.__name__)
+                tick_rate = metadata.tick_rate if metadata else None
+
+                # Instantiate with tick_rate if the system supports it in __init__
+                # Our base System now supports it.
+                system = cls()
+                if tick_rate:
+                    system.tick_rate = tick_rate
+                    logger.debug(f"System {cls.__name__} configured with {tick_rate} TPS")
+
+                initialized_systems.append(system)
+
+            self.systems[phase] = initialized_systems
             logger.debug(f"Phase {phase.name}: {[s.__class__.__name__ for s in self.systems[phase]]}")
 
     async def run(self):
@@ -66,16 +81,33 @@ class SerpentineEngine:
     async def _tick(self, dt: float):
         """Executes one tick of the engine loop."""
         # Execute phases in order
-        # We iterate over SystemPhase enum to ensure order
         for phase in SystemPhase:
             systems = self.systems.get(phase, [])
             for system in systems:
                 try:
-                    await system.update(self.world, dt)
+                    if system.tick_rate:
+                        system._accumulator += dt
+                        target_dt = 1.0 / system.tick_rate
+
+                        # If enough time accumulated, run one or more updates
+                        # Fixed timestep logic for specific systems
+                        if system._accumulator >= target_dt:
+                            # Avoid spiral of death by capping max updates?
+                            # For simplicity, just run once per tick if ready, consuming accumulated time.
+                            # Or run multiple times?
+                            # Let's run as many times as needed to catch up, but with a limit?
+                            # Simple approach: while accumulator > target_dt: update(target_dt)
+
+                            while system._accumulator >= target_dt:
+                                await system.update(self.world, target_dt)
+                                system._accumulator -= target_dt
+                    else:
+                        # Standard system: run every frame with variable dt
+                        await system.update(self.world, dt)
+
                 except Exception as e:
                     logger.error(f"Error in system {system.__class__.__name__}: {e}")
                     # Decide whether to crash or continue. Continuing is safer for dev.
-                    # In production, maybe crash? For now, log and continue.
 
     def stop(self):
         self.is_running = False

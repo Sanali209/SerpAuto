@@ -1,97 +1,60 @@
 # System Implementation Guide
 
-This guide details how to create, register, and optimize new ECS Systems within the Serpentine Engine.
+This guide details how to implement systems in the Serpentine Engine.
 
-## 1. The Anatomy of a System
+## 1. Basics
 
-A System is a logic container that iterates over Entities possessing specific Components. It has no state of its own (ideally) and operates purely on Component data.
-
-### 1.1. Base Class
-All systems must inherit from `core.system.System`.
+A `System` is a class responsible for logic processing. It operates on entities and components stored in the `World`.
 
 ```python
-from core.system import System
-from core.world import World
+from serpentine.systems.base import System
+from serpentine.core.registry import Registry, SystemPhase, EngineMode
 
-class MySystem(System):
-    async def update(self, world: World, dt: float):
+@Registry.register_system(phase=SystemPhase.INTERNAL_PHYSICS)
+class MyPhysicsSystem(System):
+    async def update(self, world, dt):
+        # Your logic here
         pass
 ```
 
-## 2. Registration & Discovery
+## 2. System Configuration
 
-To be loaded by the engine, a system must be decorated with `@register_system`.
+Systems can be configured with metadata using the `@Registry.register_system` decorator.
 
-### 2.1. The Decorator
-```python
-from core.registry import register_system
-from core.enums import Phase, EngineMode
+### Arguments
 
-@register_system(
-    name="MyPhysicsSystem",
-    phase=Phase.INTERNAL_PHYSICS,
-    dependencies=["TransformComponent", "VelocityComponent"],
-    mode=[EngineMode.PLAY, EngineMode.GYMNASIUM]
-)
-class MyPhysicsSystem(System):
-    ...
-```
+*   **phase**: The `SystemPhase` (e.g., `INPUT`, `PERCEPTION`, `INTERNAL_PHYSICS`) where this system runs.
+*   **modes**: A list of `EngineMode` (e.g., `ARCHITECT`, `PRODUCTION`) where this system is active. Default: All modes.
+*   **priority**: Execution order within the phase. Higher priority runs first. Default: 0.
+*   **tick_rate**: (Optional) A specific update rate (TPS) for this system.
 
-*   **name**: Unique identifier.
-*   **phase**: When in the loop this system runs (INPUT -> PERCEPTION -> PHYSICS -> COGNITION -> EXECUTION).
-*   **dependencies**: List of Component names required for this system to function (informational).
-*   **mode**: List of modes in which this system is active. Omit to run in all modes.
+## 3. Tick Rate Adjustment
 
-## 3. The Update Loop
+Systems can run at a different frequency than the main engine loop. This is useful for systems that don't need to update every frame (e.g., AI decision making) or need a fixed timestep (e.g., Physics).
 
-The `update` method is where the magic happens. It is `async` to allow for non-blocking I/O (e.g., network calls, async file writes), though most systems will be CPU-bound.
+### How it Works
 
-### 3.1. Iterating Entities
-Use `world.get_entities_with()` to find relevant entities efficiently.
+If `tick_rate` is specified in the registration metadata:
+1.  The engine tracks an accumulator for the system.
+2.  The system's `update(world, dt)` method is called only when enough time has accumulated (`>= 1.0 / tick_rate`).
+3.  The `dt` passed to `update` will be fixed at `1.0 / tick_rate`.
+4.  If the engine lags, `update` may be called multiple times in a single engine tick to catch up.
+
+### Example
 
 ```python
-async def update(self, world: World, dt: float):
-    # Get all entities that have BOTH Transform and Velocity
-    # This query is cached and optimized by the World.
-    entities = world.get_entities_with(TransformComponent, VelocityComponent)
-
-    for entity, (transform, velocity) in entities:
-        # Apply physics
-        transform.x += velocity.vx * dt
-        transform.y += velocity.vy * dt
+# This AI system runs at 10 TPS, regardless of the engine's frame rate (e.g. 60 FPS)
+@Registry.register_system(phase=SystemPhase.COGNITION, tick_rate=10)
+class AISystem(System):
+    async def update(self, world, dt):
+        # dt will always be 0.1 (1/10) here
+        pass
 ```
 
-### 3.2. Creating/Destroying Entities
-*   **Create**: `new_entity = world.create_entity()`
-*   **Destroy**: `world.destroy_entity(entity)`
-    *   *Note*: Destruction is deferred to the end of the tick in some ECS implementations, but in Serpentine it is immediate. Be careful modifying the list you are iterating over.
+### When to Use
+*   **Physics**: Use a fixed `tick_rate` (e.g., 60) for stable integration.
+*   **AI/Behavior Trees**: Use a lower `tick_rate` (e.g., 5-10) to save CPU cycles.
+*   **Network Sync**: Use a fixed rate to match server tick rate.
 
-## 4. Best Practices
-
-### 4.1. Avoid Internal State
-Do not store entity data in `self`. Store it in Components.
-*   *Bad*: `self.entity_positions = {}`
-*   *Good*: `world.get_component(entity, TransformComponent)`
-
-### 4.2. Async Etiquette
-*   **Do not block**: Avoid `time.sleep()`. Use `await asyncio.sleep()`.
-*   **CPU Bound**: If you have a heavy calculation (e.g., pathfinding), consider offloading it to a thread executor if it causes frame drops.
-
-### 4.3. Error Handling
-Wrap critical logic in `try/except` blocks. If a system crashes, it should log the error but ideally not bring down the entire engine loop (unless critical).
-
-## 5. Example: Health Regeneration System
-
-```python
-@register_system(
-    name="HealthRegenSystem",
-    phase=Phase.GAME_LOGIC,
-    mode=[EngineMode.PLAY]
-)
-class HealthRegenSystem(System):
-    async def update(self, world: World, dt: float):
-        # Query entities with Health but NOT Dead
-        for entity, (health,) in world.get_entities_with(HealthComponent):
-            if health.current < health.max and health.is_alive:
-                health.current += health.regen_rate * dt
-```
+### Standard Behavior
+If `tick_rate` is `None` (default), the system runs every engine tick with a variable `dt` (delta time since the last frame).

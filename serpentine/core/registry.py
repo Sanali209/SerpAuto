@@ -28,6 +28,7 @@ class SystemMetadata(BaseModel):
     phase: SystemPhase
     modes: List[EngineMode]
     priority: int = 0  # Higher runs first within phase
+    tick_rate: Optional[int] = None  # Specific TPS for this system, None = Engine TPS
 
 class Registry:
     _components: Dict[str, Type[BaseComponent]] = {}
@@ -41,12 +42,17 @@ class Registry:
         return component_cls
 
     @classmethod
-    def register_system(cls, phase: SystemPhase, modes: Optional[List[EngineMode]] = None, priority: int = 0):
-        """Decorator to register a system class with metadata."""
+    def register_system(cls, phase: SystemPhase, modes: Optional[List[EngineMode]] = None, priority: int = 0, tick_rate: Optional[int] = None):
+        """
+        Decorator to register a system class with metadata.
+
+        Args:
+            phase: The engine phase this system runs in.
+            modes: List of modes where this system is active. None = All modes.
+            priority: Execution order within phase (Higher = First).
+            tick_rate: Custom update rate (TPS) for this system. If None, runs every engine tick.
+        """
         if modes is None:
-            # Default to all modes if not specified (or should it be restrictive?)
-            # Assuming all modes for now if not specified, or maybe required.
-            # Let's default to all modes for core systems.
             modes = list(EngineMode)
 
         def wrapper(system_cls: Type[Any]) -> Type[Any]:
@@ -54,7 +60,8 @@ class Registry:
             cls._system_metadata[system_cls.__name__] = SystemMetadata(
                 phase=phase,
                 modes=modes,
-                priority=priority
+                priority=priority,
+                tick_rate=tick_rate
             )
             return system_cls
         return wrapper
