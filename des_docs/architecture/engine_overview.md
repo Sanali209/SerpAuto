@@ -61,6 +61,7 @@ Serpentine — это асинхронный, Tick-based движок на ба�
 > **Углубленное изучение ядра**:
 > *   [Реализация иерархии сущностей](ecs_hierarchy_impl.md)
 > *   [Библиотека игровых компонентов](game_ecs_library.md)
+> *   [Руководство по реализации систем](../guides/system_implementation_guide.md)
 
 ## 3. Восприятие и Компьютерное Зрение (Perception Pipeline)
 

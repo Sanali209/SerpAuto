@@ -54,6 +54,10 @@ Welcome to the internal design documentation for the Serpentine Engine. This fol
 
 ## 📚 Guides
 *   [**Behavior Tree Guide**](guides/BEHAVIOR_TREE_GUIDE.md): How to design and implement agent logic.
+*   [**Offline Development Guide**](guides/offline_dev_guide.md): Working in air-gapped environments.
+*   [**Testing Strategy**](guides/testing_strategy.md): Unit testing ECS systems and Behavior Trees.
+*   [**System Implementation Guide**](guides/system_implementation_guide.md): Creating and optimizing new ECS Systems.
+*   [**Contribution Guidelines**](../CONTRIBUTING.md): Git workflow and code standards.
 
 ---
 *See [**dev_docs_rules.md**](dev_docs_rules.md) for documentation standards.*
