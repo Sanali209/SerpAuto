@@ -26,6 +26,10 @@ Every design document should ideally contain the following sections:
 *   **Tone**: Professional and technical. Avoid conversational logs (chat outputs) in final design documents unless as a "Design Discovery" appendix.
 *   **Formatting**: Use GitHub-flavored Markdown. Bold important components like `TransformComponent`.
 
-## 5. Maintenance & Sync
-*   **Roadmap Alignment**: Any new "Phase" or major system must be added to `roadmap.md` and `tasks.md`.
-*   **Crosllinking**: When adding a new file, update the parent documentation or the "Design Overview" to link to it.
+## 6. Standardized Terminology
+To ensure the engine speaks a unified language, use the following terms in all documentation:
+- **Observation**: Output of Perception (What the agent sees).
+- **Intent**: Output of Mind (What the agent wants).
+- **Command**: Output of Execution (What the engine does).
+- **Snapshot**: A serialized World state for persistence.
+- **Registry V2**: The metadata discovery layer for systems and components.

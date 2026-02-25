@@ -7,11 +7,11 @@ This document traces the lifecycle of data as it moves through the Serpentine En
 The engine implements a classic Cybernetic Loop:
 
 ```
-[ World / OS ]  <-- (Changes) <--  [ Actions ]
+[ World / OS ]  <-- (Command) <--  [ Execution ]
       |                                 ^
       | (Raw Data)                      | (Intent)
       v                                 |
-[ Perception ]  --> (Context) -->  [ Brain ]
+[ Perception ]  --> (Observation) -->  [ Mind ]
 ```
 
 ---
@@ -23,8 +23,8 @@ The engine implements a classic Cybernetic Loop:
 *   **Process**:
     1.  Raw data enters the pipeline.
     2.  Filters apply transformations (Crop -> Grayscale -> OCR).
-    3.  **Result**: Structured JSON (e.g., `{"enemy_loc": [100, 200], "text": "Login"}`).
-*   **Storage**: Stored in `PerceptionComponent.raw_context`.
+    3.  **Result**: An `Observation` object (Structured Pydantic model).
+*   **Storage**: Stored in `PerceptionComponent.observations`.
 
 ### Step 2: Cognition (Brain)
 *   **Input**: `PerceptionComponent` + `MemoryComponent` (Blackboard).
@@ -32,17 +32,18 @@ The engine implements a classic Cybernetic Loop:
     1.  `AI_BrainSystem` ticks the entity's Behavior Tree.
     2.  Nodes query the Blackboard or Perception.
     3.  Nodes return `SUCCESS`, `FAILURE`, or `RUNNING`.
-    4.  Leaf nodes (Action Nodes) construct `BaseAction` objects.
-*   **Output**: An `Action` object (e.g., `ClickAction(x=10, y=20)`).
+    4.  Leaf nodes (Action Nodes) construct `Intent` objects.
+*   **Output**: An `Intent` object (e.g., `ClickIntent(...)`).
 *   **Storage**: Pushed to `ActionBufferComponent.queue`.
 
 ### Step 3: Execution (Act)
 *   **Input**: `ActionBufferComponent.queue`.
 *   **Process**:
-    1.  `ActionExecutionSystem` pops the next action.
-    2.  Checks `target_env`:
-        *   `EXTERNAL_OS`: Calls `pyautogui.click()`.
-        *   `INTERNAL_ENGINE`: Modifies `TransformComponent` of a target entity.
+    1.  `ActionExecutionSystem` pops the next Intent.
+    2.  Converts Intent into a physical **Command**.
+    3.  Checks `target_env`:
+        *   `EXTERNAL_OS`: Executes via environment driver.
+        *   `INTERNAL_ENGINE`: Modifies components of target entity.
 *   **Output**: Side effect in the real world or virtual world.
 
 ---

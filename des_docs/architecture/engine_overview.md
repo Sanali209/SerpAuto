@@ -37,12 +37,25 @@ Serpentine — это асинхронный, Tick-based движок на ба�
 Движок не блокируется тяжелыми вычислениями. Целевой Tick Rate — 20-60 TPS (в Headless/Gym режиме — безлимитно).
 
 **Порядок выполнения Систем (Phases):**
-1.  **Mail Routing Phase**: `MessageRouterSystem` разносит письма из outbox в inbox адресатов.
-2.  **Perception Phase**: Сбор сырых данных (`SensoryInputSystem`) и прогон через направленный граф фильтров (`PerceptionPipelineSystem`). Обновление `PerceptionComponent`.
-3.  **Internal Physics Phase** (Опционально): `InternalPhysicsSystem` двигает внутренние сущности, обсчитывает коллизии.
-4.  **Cognition Phase**: `AI_BrainSystem` опрашивает Behavior Trees каждого агента. Если нужен ответ сети (LLM/API), создается асинхронная Task, а агент переходит в статус WAITING.
-5.  **Execution Phase**: `ActionExecutionSystem` маршрутизирует команды из буфера (клик мышью в ОС или вызов `on_click` внутри памяти).
-6.  **Telemetry Phase**: Обновление GUI (`GUIDebugSystem`), запись датасетов (`DatasetLoggerSystem`).
+1.  **Input Phase**: `HumanInputSystem` захватывает ввод пользователя (Phase.INPUT).
+2.  **Mail Routing Phase**: `MessageRouterSystem` разносит письма из outbox в inbox адресатов (Phase.MAIL_ROUTING).
+3.  **Perception Phase**: Сбор сырых данных (`SensoryInputSystem`) и прогон через направленный граф фильтров (`PerceptionPipelineSystem`). Обновление `PerceptionComponent` (Phase.PERCEPTION).
+4.  **Internal Physics Phase**: `InternalPhysicsSystem` двигает внутренние сущности, обсчитывает коллизии (Phase.INTERNAL_PHYSICS).
+5.  **Cognition Phase**: `AI_BrainSystem` опрашивает Behavior Trees каждого агента (Phase.COGNITION).
+6.  **Execution Phase**: `ActionExecutionSystem` маршрутизирует команды из буфера (Phase.EXECUTION).
+7.  **Reward Phase**: `EnvironmentJudgeSystem` начисляет награды в режиме Gymnasium (Phase.REWARD).
+8.  **Telemetry Phase**: Обновление GUI (`GUIDebugSystem`), запись датасетов (`DatasetLoggerSystem`) (Phase.TELEMETRY).
+
+### 2.4. Unified Dataflow (Consolidation Strategy)
+Движок переходит на стандартизированный поток данных для обеспечения модульности:
+1.  **Observations** (Наблюдения): Выход Perception Phase. Сырые данные сенсоров, упакованные в Pydantic-модели.
+2.  **Intent** (Намерения): Выход Cognition Phase. Behavior Tree формирует логическую цель (например, "Двигаться к яблоку").
+3.  **Commands** (Команды): Выход Execution Phase. Конвертация намерений в физические действия (Click, Move, Key).
+
+### 2.5. Data-Driven Orchestration
+Вместо жесткого перечисления систем в `main.py`, движок использует **RegistryV2**.
+- Каждая система помечается `@register_system(modes=[EngineMode.ARCHITECT, ...])`.
+- Оркестратор динамически собирает граф систем при запуске, что позволяет добавлять новые функции (плагины) без модификации ядра.
 
 > [!TIP]
 > **Углубленное изучение ядра**:
@@ -53,7 +66,8 @@ Serpentine — это асинхронный, Tick-based движок на ба�
 
 Конвейер обработки входящих данных, построенный на архитектуре DAG (Directed Acyclic Graph).
 
-*   **Узлы (Nodes)**: Каждый фильтр имеет Pydantic-конфиг (авто-биндинг в GUI) и метод `process(context)`.
+*   **Узлы (Nodes)**: Каждый фильтр имеет Pydantic-конфиг (авто-биндинг в GUI) и метод `process(context)`. Подробнее см. [Реестр узлов восприятия](perception_nodes.md).
+*   **Визуальный Редактор**: Весь конвейер настраивается через [**Perception Pipeline Editor**](perception_pipeline_editor.md).
 *   **Базовые фильтры**:
     *   `DOMParserNode`: Извлечение XPath/CSS селекторов.
     *   `OpenCVNodes`: Crop, Grayscale, Threshold, MatchTemplate.
@@ -237,7 +251,9 @@ Behavior Tree не знает, какая модель подключена. У�
 ## 12. Планирование и Ссылки
 
 Для отслеживания прогресса и технических инсайтов используйте следующие документы:
-*   [**Roadmap проекта**](../planning/roadmap.md): Стратегические фазы развития.
+- [x] Create [**Consolidation Strategy**](../planning/consolidation_strategy.md): Roadmap for structural refinement.
+- [x] Create [**Unified Registry & Node Graph**](unified_registry_and_node_graph.md): Metadata and visual tool foundations.
+*   [**Detailed Dataflow Map**](dataflow_architecture.md): Visual wiring of Observations and Commands.
 *   [**Список задач (Backlog)**](../planning/tasks.md): Детальные задачи с приоритетами P0-P3.
 *   [**ML Insights**](../api_ml/ml_integration_insights.md): Детали реализации Hot-Swapping и версионирования моделей.
 *   [**Стандарты документации**](../dev_docs_rules.md): Правила именования и структуры файлов.

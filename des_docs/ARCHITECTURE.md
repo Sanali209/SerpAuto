@@ -12,8 +12,8 @@ Serpentine uses a modern **Entity-Component-System (ECS)** architecture, which d
     *   **Engine Loop**: The heartbeat (Tick) that orchestrates execution phases.
 
 2.  **Body (Perception & Action)**
-    *   **Perception System**: Ingests raw data (Screen pixels, DOM tree, JSON APIs).
-    *   **Action System**: Translates logical intents (`ClickAction`) into OS commands (Playwright, PyAutoGUI).
+    *   **Perception System**: Ingests raw data and emits structured **Observations**.
+    *   **Action System**: Translates logical **Intents** into physical **Commands**.
 
 3.  **Mind (Cognition)**
     *   **Brain System**: Executes decision-making logic.
@@ -34,12 +34,12 @@ The `SerpentineEngineV2` executes systems in a strict phase order to ensure dete
 | :--- | :--- | :--- |
 | **1. INPUT** | `HumanInputSystem` | Read keyboard/mouse override commands. |
 | **2. MAIL_ROUTING** | `MessageRouterSystem` | Move messages from `Outbox` A -> `Inbox` B. |
-| **3. PERCEPTION** | `PerceptionPipelineSystem` | Run CV/DOM nodes to update `PerceptionComponent`. |
-| **4. INTERNAL_PHYSICS** | `TransformHierarchySystem` | Update positions, handle collisions. |
-| **5. COGNITION** | `AI_BrainSystem` | Tick Behavior Trees, generate Actions. |
-| **6. EXECUTION** | `ActionExecutionSystem` | Execute queued actions (Click, Type, Move). |
+| **3. PERCEPTION** | `PerceptionPipelineSystem` | CV/DOM nodes update `ObservationComponent`. |
+| **4. INTERNAL_PHYSICS** | `InternalPhysicsSystem` | Update positions, handle collisions. |
+| **5. COGNITION** | `AI_BrainSystem` | BTs generate logical **Intents**. |
+| **6. EXECUTION** | `ActionExecutionSystem` | Translate Intents to **Commands**. |
 | **7. REWARD** | `EnvironmentJudgeSystem` | Calculate RL rewards (Gym Mode only). |
-| **8. TELEMETRY** | `TelemetrySystem` | Log FPS, stats, send to dashboard. |
+| **8. TELEMETRY** | `TelemetrySystem` | Log stats, broadcast via Unified Event Bus. |
 
 ---
 
@@ -69,4 +69,5 @@ graph TD
 
 *   **Data-Driven**: Logic is generic (`System`); behavior is defined by data (`Component`). An agent becomes a "Sniper" not by class inheritance, but by attaching a `SniperRifleComponent` and `LongRangeBehaviorComponent`.
 *   **Reactive Query Caching**: The `World` maintains cached sets of entities (e.g., "All entities with Position AND Velocity") to make iteration O(1).
-*   **Asynchronous Core**: Systems are `async def update()`. This allows long-running IO (Network requests, LLM inference) to run concurrently without freezing the simulation tick.
+*   **Data-Driven Orchestration**: Systems are dynamically loaded via **Registry V2** based on the active `EngineMode`.
+*   **Asynchronous Core**: All systems are non-blocking, enabling high-concurrency swarm operations.

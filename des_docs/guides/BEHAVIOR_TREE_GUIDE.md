@@ -56,16 +56,37 @@ class MyAsyncNode(BehaviorTreeNode):
 ## 3. Standard Node Library
 
 ### Control Flow
-*   **Sequence**: Runs children in order. Fails if *any* child fails. (AND logic).
-*   **Selector**: Runs children in order. Succeeds if *any* child succeeds. (OR logic).
 *   **Parallel**: Runs children concurrently.
+
+### 🎯 Intent Nodes (Action Nodes)
+In the Serpentine framework, Action Nodes do not directly trigger physical drivers (like PyAutoGUI). Instead, they produce **Intent** objects.
+- **Goal**: Separation of "Thinking" from "Doing".
+- **Process**: A node creates an `Intent` (e.g., `ClickIntent`) and pushes it to the agent's `ActionBufferComponent`.
 
 ### Decorators
 *   **Inverter**: Flips Success <-> Failure.
-*   **Succeeder**: Ignores failure.
-*   **RepeatUntilFail**: Useful for loops.
+*   **Succeeder**: Always returns SUCCESS (unless child is RUNNING).
+*   **RepeatUntilFail**: Useful for loop logic.
+
+### AI & Inference
+*   **LLMInferenceNode**: The core cognitive node. Triggers an async call to an LLM via an AI Adapter. It handles state synchronization (`WAITING_LLM` status) and writes results to the blackboard.
 
 ### Utility
 *   **WaitNode(seconds)**: Returns `RUNNING` for N seconds.
-*   **CheckBlackboardVariable**: Condition check.
 *   **SetBlackboardVariable**: Modify memory.
+
+---
+
+## 4. Visual Editing & Parameters
+
+### `@register_node` Metadata
+All BT nodes should be registered via the Registry V2 to appear in the [**Visual BT Editor**](../architecture/behavior_tree_editor.md).
+```python
+@register_node(category="Actions", icon="🖱️")
+class MyActionNode(BehaviorTreeNode):
+    class Params(BaseModel):
+        target: str # This will automatically appear in the Inspector
+```
+
+### Selection & Inspector
+When a node is selected in the visual editor, the **SelectionService** synchronized the **Inspector Window**. The Inspector uses **AutoUIBuilder** to render the `Params` Pydantic model into editable widgets.

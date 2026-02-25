@@ -13,9 +13,9 @@ The `SerpentineGymEnv` class acts as the bridge.
 ```python
 class SerpentineGymEnv(gym.Env):
     def step(self, action):
-        # 1. Inject Action into ECS
+        # 1. Convert RL Action to Engine Intent
         # 2. engine.tick()
-        # 3. Extract Reward & Observation
+        # 3. Extract Reward & ObservationComponent
         return obs, reward, terminated, truncated, info
 ```
 

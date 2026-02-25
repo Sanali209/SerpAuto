@@ -13,6 +13,9 @@ A pure data container (Pydantic Model). It holds state but has no methods/logic.
 A logic processor that iterates over Entities with specific Components.
 *   *Examples*: `PhysicsSystem` (moves things), `RenderSystem` (draws things).
 
+### Registry V2
+A metadata-rich discovery service that tracks all components, systems, and nodes. It enables dynamic engine orchestration and zero-code GUI generation.
+
 ### World
 The central container/database that stores all Entities and Components. It provides query methods like `get_entities_with()`.
 
@@ -60,3 +63,16 @@ A string channel name used for Pub/Sub broadcasting (e.g., "market_update").
 
 ### Mailbox
 A component handling incoming (`inbox`) and outgoing (`outbox`) messages for an agent.
+
+---
+
+## 🚀 Unified Dataflow
+
+### Observation
+The structured output of the Perception Phase (CV, DOM). It represents the agent's current understanding of the environment.
+
+### Intent
+The output of the Cognition Phase (BT/LLM). It represents a high-level goal (e.g., "Attack") before it is translated into a physical command.
+
+### Command
+The output of the Execution Phase. A physical instruction (e.g., "Left-Click @ 10,20") executed against an environment.

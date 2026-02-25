@@ -57,7 +57,7 @@ class TransformComponent(BaseComponent):
 Ее задача — пробежаться по дереву от корней (сущностей без родителей) к листьям (детям) и "протолкнуть" глобальные координаты вниз.
 
 ```python
-class TransformHierarchySystem(BaseSystem):
+class TransformHierarchySystem(System):
     def update(self, world: World, dt: float):
         # 1. Находим "Корни" (сущности с Трансформом, но БЕЗ родителя)
         roots = []
