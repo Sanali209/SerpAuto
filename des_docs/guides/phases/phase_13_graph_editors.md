@@ -24,9 +24,9 @@ This guide covers the implementation of visual designers for agent logic (Behavi
 3.  **Live Debugging**:
     - Implement `DebuggingManager` to poll the active agent's BT status per tick.
     - Change node background colors in the DPG canvas: 🟢 Success, 🔴 Failure, 🔵 Running.
-4.  **Inspector Persistence**:
+- **Inspector Persistence**:
     - Bind the Editor to the `SelectionService`.
-    - Ensure selecting a node in the graph triggers the Inspector to render its Pydantic parameters.
+- **Grid Layout**: Use **DearPyGui-Grid** to dock the Sidebar, Canvas, and Inspector panels cleanly within the editor context.
 
 ### 13.2 Perception Pipeline Editor
 1.  **DAG Visualization**:
@@ -63,8 +63,16 @@ This guide covers the implementation of visual designers for agent logic (Behavi
 - [ ] Perception Editor correctly visualizes DAG flows and previews pins.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Log all graph link/unlink events and serialization failures in `graph_editors.log`.
+- **Logs**: Log all graph link/unlink events and serialization failures in `graph_editors.log` via **Loguru**.
+- **Execution Tracking**: Log BT status transitions to `mind.log` for out-of-editor debugging.
 - **Metrics**: Monitor graph rendering overhead in DPG.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to design the auto-layout algorithm. Use `filesystem` MCP to manage graph blueprint files.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Design the auto-layout algorithm for complex node graphs.
+    - `filesystem`: Manage graph blueprint files and output.

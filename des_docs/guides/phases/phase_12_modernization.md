@@ -22,6 +22,7 @@ This guide provides autonomous instructions for implementing the Integrated Core
 2.  **Selection Service (`core/selection.py`)**:
     - Build a singleton `SelectionService` that stores `selected_entity_id`, `selected_node_id`, and `selected_component_type`.
     - Integrate with `GUIEventBus` to emit events like `ON_SELECTION_CHANGED`.
+3.  **Grid Layouts**: Apply **DearPyGui-Grid** for the new modular window system to ensure structural consistency and responsive resizing.
 
 ### 12.2 GUI Modularization (`systems/gui/`)
 1.  **Base Framework**:
@@ -61,8 +62,15 @@ This guide provides autonomous instructions for implementing the Integrated Core
 - [ ] `WindowManager` handles window stacking and persistence without flickering.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record registry discovery events and UI event bus traffic in `modernization.log`.
-- **Metrics**: Track UI event latency (selection-to-draw).
+- **Logs**: Record registry discovery events and UI event bus traffic in `modernization.log` via **Loguru**.
+- **Metrics**: Track UI event latency (selection-to-draw) and display via **Rich.LiveData** in the terminal during development.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to plan the migration of complex legacy windows. Use `filesystem` MCP to audit the new modular directory structure.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Plan migration of complex legacy windows.
+    - `filesystem`: Audit the new modular directory structure.

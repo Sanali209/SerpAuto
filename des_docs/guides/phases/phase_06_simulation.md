@@ -54,5 +54,12 @@ This guide covers the simulation layer and imitation learning data collection.
 - **Logs**: Record teacher session starts and data dump locations in `simulation.log`.
 - **Metrics**: Monitor dataset size and agent reward average.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to define reinforcement learning reward structures. Use `filesystem` MCP to manage large simulation datasets.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Define reinforcement learning reward structures.
+    - `filesystem`: Manage and audit large simulation datasets.

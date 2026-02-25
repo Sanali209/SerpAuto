@@ -54,8 +54,15 @@ This guide covers the reference implementation of a complete RL loop within the 
 - [ ] Collision events trigger immediate `RewardComponent` updates.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record snake game events (Eat/Death) in `snake_project.log`.
-- **Metrics**: Track average score and survival time in RL dashboard.
+- **Logs**: Record snake game events (Eat/Death) in `snake_project.log` via **Loguru**.
+- **Metrics**: Track average score and survival time in the RL dashboard and display live summary via **Rich.Table**.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to refine snake perception nodes. Use `web-search` MCP to research PPO hyperparameter tuning for grid-based games.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Refine snake perception nodes and reward models.
+    - `web-search`: Fine-tune PPO hyperparameters based on industry benchmarks.

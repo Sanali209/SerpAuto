@@ -48,8 +48,15 @@ This guide covers the dynamic world management and project resource structures.
 - [ ] Component bitmasks are generated correctly for all registered types.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Log all registered types and scene load events in `registry.log`.
-- **Metrics**: Monitor time spent in `World.serialize/deserialize`.
+- **Logs**: Log all registered types and scene load events in `scene_registry.log` via **Loguru**.
+- **Metrics**: Monitor time spent in `World.serialize/deserialize` via Telemetry.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `filesystem` MCP to validate scene JSON schemas. Use `sequential-thinking` MCP to plan complex world transitions.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `filesystem`: Validate scene JSON schemas and blueprint integrity.
+    - `sequential-thinking`: Plan complex world/scene transitions and bitmask generation.

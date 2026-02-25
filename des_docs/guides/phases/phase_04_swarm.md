@@ -53,8 +53,15 @@ This guide covers inter-agent communication and coordinated swarm intelligence.
 - [ ] Swarm identities are persistent across world snapshots.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record all inter-agent traffic in `swarm.log` (optional, toggleable for performance).
-- **Metrics**: Monitor `MailboxComponent` queue depth.
+- **Logs**: Record all inter-agent traffic in `swarm.log` via **Loguru** (toggleable).
+- **Metrics**: Monitor `MailboxComponent` queue depth and packet loss.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to model multi-agent communication protocols. Use `web-search` MCP to research common MAS architectural pitfalls.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Model multi-agent communication protocols.
+    - `web-search`: Research common MAS architectural pitfalls.

@@ -22,12 +22,13 @@ This guide covers the DearPyGui-based development workspace and visual debugging
 - [ ] **World Outliner**: Hierarchical entity list with CRUD.
 - [ ] **Component Inspector**: Dynamic property editing via `AutoUIBuilder`.
 - [ ] **Registry Integration**: Dropdown for adding components from the registry.
+- [ ] **Grid Layouts**: Use **DearPyGui-Grid** for all custom window layouts to ensure clean, responsive UI code.
 
 ### 🛠️ Web Insights & Advanced Patterns
 > [!TIP]
 > **Responsive DPG**: Achieving responsiveness in DearPyGui requires implementing window-resize callbacks to programmatically adjust `child_window` dimensions.
 > - **Docking Space**: Set `docking=True` and `docking_space=True` in `dpg.configure_app` to enable professional IDE-like window snapping.
-> - **Visual Hierarchy**: Use `dpg.group(horizontal=True)` with `indent` and `spacer` parameters to create scanning paths that guide the developer's eye during deep debugging sessions.
+> - **Grid Management**: Prefer **DearPyGui-Grid** over manual groups and spacers for complex layouts like the Inspector or BT Editor to keep UI code maintainable and under the 500-line limit.
 
 ### 🔄 Consolidation Hook: Global Selection Service
 - **Goal**: Synchronize user focus across all visual tools.
@@ -58,8 +59,15 @@ This guide covers the DearPyGui-based development workspace and visual debugging
 - [ ] Docking layouts persist between application restarts.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Log UI event bus traffic (e.g., selection changes) in `gui.log` at the `DEBUG` level.
-- **Metrics**: Track UI FPS alongside simulation TPS in the Control Deck.
+- **Logs**: Log UI event bus traffic and window lifecycle in `gui.log` using **Loguru**.
+- **Metrics**: Track UI FPS alongside simulation TPS in the Control Deck using **Rich** styled tables.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `filesystem` MCP to manage DPG layout files. Use `sequential-thinking` MCP to plan the migration of legacy GUI code.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `filesystem`: Manage DPG layout files and audit project structure.
+    - `sequential-thinking`: Plan migrations of legacy GUI modules.

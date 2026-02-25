@@ -1,6 +1,6 @@
 # Serpentine Engine Roadmap
 
-This roadmap outlines the strategic development phases for the Serpentine Engine, transitioning from a basic ECS framework to a full-scale Multi-Agent System (MAS) with cognitive capabilities.
+This roadmap outlines the strategic development phases for the Serpentine Engine, transitioning from a basic ECS framework to a full-scale Multi-Agent System (MAS) with cognitive capabilities. See [**Tech Stack Integration**](../architecture/tech_stack.md) for core library details.
 
 ## Phase 1: Core Engine & ECS Architecture (Foundation) ([**Guide**](../guides/phases/phase_01_core.md))
 **Goal**: Establish a robust, high-performance Entity-Component-System framework capable of handling thousands of entities at 60+ TPS.
@@ -9,6 +9,7 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 *   **Milestone 1.2**: System Update Loop ([**Engine Overview**](../architecture/engine_overview.md) with `asyncio`).
 *   [ ] **Milestone 1.3**: Query Caching & Optimization (Set Intersection Logic).
 *   **Milestone 1.4**: Standard Component Library ([**Component Reference**](../architecture/COMPONENT_REFERENCE.md)).
+*   **Milestone 1.5**: **DX Foundation**: Core Logging with `Loguru` and CLI entry point with `Typer/Rich`.
 
 ## Phase 2: The Body (Perception & Action Pipelines) ([**Guide**](../guides/phases/phase_02_perception.md))
 **Goal**: Enable agents to sense the environment and execute physical actions.

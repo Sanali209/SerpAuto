@@ -51,8 +51,15 @@ This guide covers the specialized execution modes of the Serpentine Engine.
 - [ ] Telemetry correctly reports TPS/Memory usage in all modes.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Track mode transitions and system filtering results in `engine.log`.
-- **Metrics**: Monitor `EngineMode` uptime and resource consumption.
+- **Logs**: Track mode transitions and system filtering results in `engine.log` via **Loguru**.
+- **Metrics**: Monitor `EngineMode` uptime and resource consumption using **Rich.Panel** visuals in the terminal.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to define system exclusion rules for new modes. Use `filesystem` MCP to audit mode configuration files.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Define and refine system exclusion rules for new modes.
+    - `filesystem`: Audit and manage mode-specific configuration files.

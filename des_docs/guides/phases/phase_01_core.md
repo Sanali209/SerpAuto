@@ -11,6 +11,7 @@ This guide details the foundational ECS architecture of the Serpentine Engine.
 - [**Engine Overview**](../../architecture/engine_overview.md)
 - [**ECS Hierarchy Implementation**](../../architecture/ecs_hierarchy_impl.md)
 - [**Component Reference**](../../architecture/COMPONENT_REFERENCE.md)
+- [**Tech Stack Integration**](../../architecture/tech_stack.md)
 
 ## 3. Implementation Status
 
@@ -59,8 +60,15 @@ This guide details the foundational ECS architecture of the Serpentine Engine.
 - [ ] All systems are correctly decorated with `@register_system`.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Track `Entity` creation/destruction in `serpentine.log` at the `DEBUG` level.
-- **Metrics**: Monitor `SerpentineEngine.actual_tps` via the Telemetry system.
+- **Logs**: Replaces standard logging with **Loguru**. Use `logger.bind(phase=1).debug()` for entity lifecycle events. Monitor `serpentine.log`.
+- **Metrics**: Monitor `SerpentineEngine.actual_tps` via the Telemetry system. Rendered via **Rich.Table** in the CLI.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use the `sequential-thinking` MCP server to plan complex ECS hierarchy changes. Utilize `memory` MCP (if available) to track entity relationships during design.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Plan complex ECS hierarchy changes.
+    - `filesystem`: Audit file length limits (500 lines).

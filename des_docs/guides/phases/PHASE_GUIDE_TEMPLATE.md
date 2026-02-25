@@ -45,5 +45,13 @@ This guide provides autonomous instructions for implementing Phase XX.
 - **Logs**: Monitor `[file].log` for `[Module]` events.
 - **Metrics**: Track `[Metric Name]` in Telemetry.
 
-## 9. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` for planning. Use `filesystem` for auditing structure.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Mandatory for complex logic/BT design.
+    - `filesystem`: Auditing file length limits and package structures.
+    - `document-index`: Context-aware documentation retrieval.

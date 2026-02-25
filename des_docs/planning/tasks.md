@@ -23,6 +23,8 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P0** Define `System` abstract base class with `update(world, dt)` method.
 *   [ ] **P0** Implement `SerpentineEngine` main loop with `asyncio`.
 *   [ ] **P1** Implement Tick Rate Limiter and `sleep` logic.
+*   [ ] **P0** Implement global logging framework using `Loguru`.
+*   [ ] **P1** Implement `main.py` CLI interface using `Typer` and `Rich` status tables.
 
 ### 1.3 Standard Component Library ([**Reference**](../architecture/COMPONENT_REFERENCE.md))
 *   [ ] **P0** `TransformComponent` ([**Hierarchy**](../architecture/ecs_hierarchy_impl.md)).
@@ -46,6 +48,7 @@ This document breaks down the development of the Serpentine Engine into actionab
 *   [ ] **P1** Implement `OCRNode` (pytesseract/docling wrapper).
 *   [ ] **P1** Implement `DOMParserNode` (Playwright/HTML extraction).
 *   [ ] **P1** Implement `GridMapperNode` (Navigation mesh generator).
+*   [ ] **P1** Implement **Visual CV Debugging** using `visual-logging` for perception nodes.
 *   [ ] **P3** Implement `StateBuilderNode` (JSON sink).
 
 ### 2.3 Action Execution

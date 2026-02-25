@@ -53,8 +53,15 @@ This guide covers the behavior tree and AI integration layers.
 - [ ] `LLMInferenceNode` handles async timeouts and fallback logic.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Track BT status transitions (Success/Failure/Running) in `mind.log`.
-- **Metrics**: Monitor LLM token usage and inference latency per agent.
+- **Logs**: Track BT status transitions in `mind.log` using **Loguru** for JSON-compatible event logs.
+- **Metrics**: Monitor LLM token usage and inference latency per agent via Telemetry.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP for complex BT logic design. Use `filesystem` MCP to audit large BT JSON blueprints.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Design complex Behavior Tree logic.
+    - `filesystem`: Audit large BT JSON blueprints for structure.

@@ -61,8 +61,15 @@ This guide details the construction of multi-agent monitoring tools and behavior
 - [ ] Imitation Learning Monitor accurately plots real-time loss.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record significant behavioral drift events and telemetry overflows in `analytics.log`.
-- **Metrics**: Track average agent FPS and LLM cost metrics across the swarm.
+- **Logs**: Record significant behavioral drift events and telemetry overflows in `analytics.log` via **Loguru** using JSON serialization for downstream analysis.
+- **Metrics**: Track average agent FPS and LLM cost metrics. Display the Global Swarm Roster in the terminal using **Rich.Columns** during long-running headless simulations.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to define behavioral analytics thresholds. Use `web-search` MCP for industry-standard imitation learning visualization patterns.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Define behavioral analytics logic and anomaly thresholds.
+    - `web-search`: Discover industry-standard imitation learning visualization patterns.

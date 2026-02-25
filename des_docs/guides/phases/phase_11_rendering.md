@@ -61,8 +61,15 @@ This guide covers the completion of the high-performance rendering pipeline and 
 - [ ] `PossessionSystem` swaps control between agents in < 1 tick.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record OpenGL context initialization details and shader compile errors in `render.log`.
-- **Metrics**: Track Draw Call count and GPU Frame Time.
+- **Logs**: Record OpenGL context initialization details and shader compile errors in `render.log` via **Loguru**.
+- **Metrics**: Track Draw Call count and GPU Frame Time. Render real-time GPU stats in the terminal using **Rich.LiveData**.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `sequential-thinking` MCP to debug OpenGL thread synchronization. Use `web-search` MCP for ModernGL shader optimization techniques.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Debug complex OpenGL thread synchronization issues.
+    - `web-search`: Optimize ModernGL shaders using latest industry techniques.

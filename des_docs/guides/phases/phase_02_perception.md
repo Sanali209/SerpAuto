@@ -38,7 +38,7 @@ This guide covers the sensory ingestion and action execution layers of the engin
 
 ### 🔄 Consolidation Hook: Unified Dataflow (Observations)
 - **Goal**: Standardize the interface between perception and cognition.
-- **Action**: All CV and Web nodes must wrap their output into standardized `Observation` objects to ensure downstream cognitive systems (BT/LLM) have a consistent interface.
+- **Action**: All CV and Web nodes must wrap their output into standardized `Observation` objects. Use **visual-logging** to export intermediate OpenCV frames during the ingestion pipeline.
 
 ## 4. Backlog Management
 - **Input**: Read the pending tasks from the Phase 1 backlog: `des_docs/planning/backlogs/phase_01_backlog.md`.
@@ -59,8 +59,16 @@ This guide covers the sensory ingestion and action execution layers of the engin
 - [ ] `ActionBufferComponent` correctly sequences `ClickAction` and `KeyAction`.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record CV node processing times and `OCRNode` confidence scores in `perception.log`.
-- **Metrics**: Track FPS of the `SensoryInputSystem` in Architect Mode.
+- **Logs**: Monitor `perception.log` via **Loguru**.
+- **Visual Debug**: Use **visual-logging** to generate `perception_debug.html` for node-by-node image inspection.
+- **Metrics**: Track FPS of the `SensoryInputSystem` in Architect Mode via **Rich.Progress**.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use the `sequential-thinking` MCP server to design complex DAG pipelines. Reference `web-search` MCP results for the latest OpenCV optimization techniques.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `sequential-thinking`: Design complex DAG pipelines.
+    - `web-search`: Research latest OpenCV optimization techniques.

@@ -49,8 +49,15 @@ This guide covers the saving, loading, and "time travel" capabilities of the eng
 - [ ] Registry permits loading components across different file versions.
 
 ## 7. Execution Logging & Monitoring
-- **Logs**: Record snapshot save/load durations and file sizes in `persistence.log`.
-- **Metrics**: Monitor `World` serialization time.
+- **Logs**: Record snapshot save/load durations and file sizes in `persistence.log` via **Loguru**.
+- **Metrics**: Monitor `World` serialization time via the engine's built-in Telemetry.
 
-## 8. Developer Experience (DX)
-- **MCP Servers**: Use `filesystem` MCP to audit snapshot files. Use `sequential-thinking` MCP to plan database schema migrations if needed.
+## 9. Developer Experience (DX) & Tooling
+- **Logging**: Use **Loguru** for structured, traceable events.
+- **Terminal UI**: Use **Rich** for status tables and **Typer** for CLI arguments.
+- **Static Analysis**: Enforce quality with **Ruff** (lint/format) and **Mypy** (types).
+- **Perception Debug**: Use **visual-logging** for CV/ingestion node audits.
+- **UI Layout**: Use **DearPyGui-Grid** for maintainable DPG window structures.
+- **MCP Servers**:
+    - `filesystem`: Audit and manage world snapshot files.
+    - `sequential-thinking`: Plan complex database/persistence schema migrations.
