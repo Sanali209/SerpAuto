@@ -67,6 +67,12 @@ class World:
             return self._components[component_type].get(entity_id) # type: ignore
         return None
 
+    def get_components(self, component_type: Type[T]) -> Dict[EntityID, T]:
+        """
+        Returns all components of a specific type as a dictionary {EntityID: Component}.
+        """
+        return self._components.get(component_type, {}) # type: ignore
+
     def has_component(self, entity_id: EntityID, component_type: Type[BaseComponent]) -> bool:
         return component_type in self._components and entity_id in self._components[component_type]
 
