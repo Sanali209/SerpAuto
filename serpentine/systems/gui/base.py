@@ -2,24 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional
 import dearpygui.dearpygui as dpg
 from serpentine.core.world import World
-
-class GUIEventBus:
-    """
-    Simple event bus for decoupling UI components.
-    """
-    _subscribers: Dict[str, List[Callable[[Any], None]]] = {}
-
-    @classmethod
-    def subscribe(cls, event_type: str, callback: Callable[[Any], None]):
-        if event_type not in cls._subscribers:
-            cls._subscribers[event_type] = []
-        cls._subscribers[event_type].append(callback)
-
-    @classmethod
-    def publish(cls, event_type: str, data: Any = None):
-        if event_type in cls._subscribers:
-            for callback in cls._subscribers[event_type]:
-                callback(data)
+from serpentine.core.event_bus import GUIEventBus
 
 class BaseUIWindow(ABC):
     """

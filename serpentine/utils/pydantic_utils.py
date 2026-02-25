@@ -48,6 +48,12 @@ except ImportError:
         def model_dump(self, **kwargs):
             return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
+        @classmethod
+        def model_validate(cls, obj):
+            if isinstance(obj, dict):
+                return cls(**obj)
+            raise ValueError("model_validate expects a dictionary")
+
         class Config:
             pass
 

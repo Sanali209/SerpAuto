@@ -1,9 +1,10 @@
-from typing import Dict, Set, Type, TypeVar, Optional, Tuple, Iterator, List
+from typing import Dict, Set, Type, TypeVar, Optional, Tuple, Iterator, List, Any
 from uuid import UUID
 
 from serpentine.core.entity import EntityID, create_entity_id
 from serpentine.core.component import BaseComponent
 from serpentine.utils.logging import configure_logging
+from serpentine.core.registry import Registry
 
 logger = configure_logging()
 
@@ -133,3 +134,63 @@ class World:
                 # Should not happen if cache logic is correct and single-threaded,
                 # but might if modified during iteration (which is unsafe anyway)
                 continue
+
+    def take_snapshot(self) -> Dict[str, Any]:
+        """
+        Serializes the entire world state into a dictionary.
+        """
+        snapshot = {
+            "entities": []
+        }
+
+        for entity_id in self._entities:
+            entity_data = {
+                "uid": str(entity_id),
+                "components": {}
+            }
+
+            # Find all components for this entity
+            for comp_type, entities in self._components.items():
+                if entity_id in entities:
+                    component = entities[entity_id]
+                    # Use Pydantic's model_dump to serialize
+                    entity_data["components"][comp_type.__name__] = component.model_dump(mode='json')
+
+            snapshot["entities"].append(entity_data)
+
+        return snapshot
+
+    def restore_snapshot(self, snapshot: Dict[str, Any]):
+        """
+        Restores the world state from a dictionary snapshot.
+        Clears the current state first.
+        """
+        # Clear current state
+        self._entities.clear()
+        self._components.clear()
+        self._query_cache.clear()
+
+        entities_data = snapshot.get("entities", [])
+
+        for entity_data in entities_data:
+            uid_str = entity_data.get("uid")
+            try:
+                uid = UUID(uid_str)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid UUID in snapshot: {uid_str}")
+                continue
+
+            entity_id = self.create_entity(uid)
+
+            components_data = entity_data.get("components", {})
+            for comp_name, comp_data in components_data.items():
+                comp_cls = Registry.get_component(comp_name)
+                if comp_cls:
+                    try:
+                        # Use Pydantic's model_validate to deserialize
+                        component = comp_cls.model_validate(comp_data)
+                        self.add_component(entity_id, component)
+                    except Exception as e:
+                        logger.error(f"Failed to restore component {comp_name} for entity {entity_id}: {e}")
+                else:
+                    logger.warning(f"Component type {comp_name} not found in Registry.")
