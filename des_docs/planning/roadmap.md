@@ -137,3 +137,10 @@ This roadmap outlines the strategic development phases for the Serpentine Engine
 - [ ] **Unified Command Stream**: Implementation of the "Observation -> Intent -> Command" pipeline.
 - [ ] **Generic Node Canvas**: Multi-purpose DPG base class for all node graph tools.
 - [ ] **Snapshot-as-a-Service**: Core `World` trait for state serialization and time-travel.
+
+### Phase 16: Knowledge & Documentation ([**Guide**](../guides/documentation_guide.md))
+**Goal**: Establish comprehensive knowledge transfer systems for both end-users and engine developers.
+- [ ] **Milestone 16.1**: Create "How-to" guides for adding new Systems/Nodes.
+- [ ] **Milestone 16.2**: Standardize docstrings with Pydantic field descriptions.
+- [ ] **Milestone 16.3**: Publish API Reference (pdoc/mkdocs).
+- [ ] **Milestone 16.4**: Create "Building your first Agent" tutorial.

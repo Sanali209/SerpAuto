@@ -26,7 +26,9 @@ Welcome to the internal design documentation for the Serpentine Engine. This fol
 *   [**Phase 12: Core Modernization**](guides/phases/phase_12_modernization.md)
 *   [**Phase 13: Visual Graph Editors**](guides/phases/phase_13_graph_editors.md)
 *   [**Phase 14: Analytics & Monitoring**](guides/phases/phase_14_analytics.md)
-*   [**Framework Consolidation Strategy**](planning/consolidation_strategy.md)
+*   [**Phase 15: Framework Consolidation**](planning/consolidation_strategy.md)
+*   [**Phase 16: Knowledge & Documentation**](guides/documentation_guide.md)
+*   [**Phase Guide Template**](guides/phases/phase_template.md)
 
 ## 🏗️ Core Architecture
 *   [**Engine Overview**](architecture/engine_overview.md): The main design document (ECS, Loop, Perception).
@@ -54,6 +56,10 @@ Welcome to the internal design documentation for the Serpentine Engine. This fol
 
 ## 📚 Guides
 *   [**Behavior Tree Guide**](guides/BEHAVIOR_TREE_GUIDE.md): How to design and implement agent logic.
+*   [**Offline Development Guide**](guides/offline_dev_guide.md): Working in air-gapped environments.
+*   [**Testing Strategy**](guides/testing_strategy.md): Unit testing ECS systems and Behavior Trees.
+*   [**System Implementation Guide**](guides/system_implementation_guide.md): Creating and optimizing new ECS Systems.
+*   [**Contribution Guidelines**](../CONTRIBUTING.md): Git workflow and code standards.
 
 ---
 *See [**dev_docs_rules.md**](dev_docs_rules.md) for documentation standards.*
