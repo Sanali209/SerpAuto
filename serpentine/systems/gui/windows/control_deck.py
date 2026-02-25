@@ -1,18 +1,21 @@
 import dearpygui.dearpygui as dpg
 from serpentine.systems.gui.base import BaseUIWindow, GUIEventBus
 from serpentine.core.world import World
+from serpentine.components.simulation import DatasetConfigComponent
 
 class ControlDeck(BaseUIWindow):
     def __init__(self):
         super().__init__("control_deck", "Control Deck", width=300, height=150)
         self.paused = False
         self.tps = 60
+        self.rec_requested = False
 
     def render(self):
         with dpg.group(horizontal=True):
             dpg.add_button(label="Play", callback=self.on_play)
             dpg.add_button(label="Pause", callback=self.on_pause)
             dpg.add_button(label="Step", callback=self.on_step)
+            dpg.add_button(label="REC", callback=self.on_rec_toggle)
 
         dpg.add_separator()
         dpg.add_drag_int(label="TPS", default_value=self.tps, min_value=1, max_value=240, callback=self.on_tps_change)
@@ -24,6 +27,17 @@ class ControlDeck(BaseUIWindow):
         if dt > 0:
             fps = int(1.0 / dt)
             dpg.set_value(self.fps_text, f"FPS: {fps}")
+
+        if self.rec_requested:
+            entities = world.get_entities_with(DatasetConfigComponent)
+            for _, config in entities:
+                config.is_recording = not config.is_recording
+                # Optionally log state change
+                print(f"Recording {'started' if config.is_recording else 'stopped'}")
+            self.rec_requested = False
+
+    def on_rec_toggle(self, sender, app_data):
+        self.rec_requested = True
 
     def on_play(self):
         self.paused = False

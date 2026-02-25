@@ -33,6 +33,7 @@ class ActionBufferComponent(BaseComponent):
     Queue for pending actions (Intents) to be executed by the ActionExecutionSystem.
     """
     action_queue: List[Intent] = Field(default_factory=list)
+    last_executed_intent: Optional[Intent] = None
 
     def enqueue(self, action: Intent):
         self.action_queue.append(action)

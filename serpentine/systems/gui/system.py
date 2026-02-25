@@ -9,7 +9,7 @@ from serpentine.systems.gui.windows.viewport import Viewport
 from serpentine.systems.gui.base import GUIEventBus
 from serpentine.core.registry import Registry, SystemPhase, EngineMode
 
-@Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.ARCHITECT])
+@Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.ARCHITECT, EngineMode.TEACHER])
 class GUIDebugSystem(System):
     """
     Main system for the Developer UI (God Mode).
