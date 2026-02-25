@@ -33,6 +33,9 @@ class ActionExecutionSystem(System):
         entities = world.get_components(ActionBufferComponent)
 
         for entity_id, buffer in entities.items():
+            # Clear previous frame's executed action
+            buffer.last_executed_intent = None
+
             # Process all pending actions or one per tick?
             # Usually one physical action per tick or as many as possible?
             # Let's do one per tick to simulate realistic speed/delay handling if needed.
@@ -41,6 +44,7 @@ class ActionExecutionSystem(System):
             action = buffer.dequeue()
             if action:
                 self._execute(action)
+                buffer.last_executed_intent = action
 
     def _execute(self, action: Intent):
         try:

@@ -1,6 +1,10 @@
 import asyncio
 from typing import Optional, Any, Dict
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 try:
     import mss
 except ImportError:
@@ -46,14 +50,16 @@ class SensoryInputSystem(System):
         for entity_id, perception in entities.items():
             perception.add_observation("raw_screen", observation)
 
-    def capture_screen(self) -> np.ndarray:
-        if self.sct:
+    def capture_screen(self):
+        if self.sct and np:
             sct_img = self.sct.grab(self.monitor)
             # mss returns BGRA, we keep it as is for now, or convert if needed
             return np.array(sct_img)
-        else:
+        elif np:
             # Return dummy black image if mss not available
             return np.zeros((self.monitor["height"], self.monitor["width"], 3), dtype=np.uint8)
+        else:
+            return None
 
 
 @Registry.register_system(phase=SystemPhase.INPUT, modes=[EngineMode.GYMNASIUM])
