@@ -7,8 +7,25 @@ except ImportError:
 
 from serpentine.core.registry import Registry
 from serpentine.mind.core import BehaviorTreeNode, Status, Blackboard
-from serpentine.mind.intent import ClickIntent, MoveIntent, KeyIntent
+from serpentine.mind.intent import ClickIntent, MoveIntent, KeyIntent, ChangeDirectionIntent
 from serpentine.perception.components import ActionBufferComponent
+
+@Registry.register_node(category="Actions", icon="🐍", description="Emits a ChangeDirectionIntent.")
+class ChangeDirectionNode(BehaviorTreeNode):
+    class Params(BaseModel):
+        direction: str
+
+    def __init__(self, direction: str):
+        super().__init__(params=self.Params(direction=direction))
+        self.direction = direction
+
+    async def tick(self, world: Any, entity: Any, blackboard: Blackboard) -> Status:
+        buffer: Optional[ActionBufferComponent] = world.get_component(entity, ActionBufferComponent)
+        if buffer:
+            intent = ChangeDirectionIntent(direction=self.direction)
+            buffer.enqueue(intent)
+            return Status.SUCCESS
+        return Status.FAILURE
 
 @Registry.register_node(category="Actions", icon="⏳", description="Waits for a specified duration.")
 class WaitNode(BehaviorTreeNode):

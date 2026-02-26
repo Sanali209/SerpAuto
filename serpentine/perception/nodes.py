@@ -185,3 +185,42 @@ class GridMapperNode(PerceptionNode):
             )
 
         return None
+
+class InternalGridPerception(PerceptionNode):
+    """
+    Converts snake_state observation to a grid map.
+    Grid values: 0=Empty, 1=Snake Head, 2=Snake Body, 3=Food.
+    """
+    def process(self, input_data: Observation, **kwargs) -> Optional[Observation]:
+        if input_data.data_type != "snake_state":
+            return None
+
+        if np is None:
+            return None
+
+        state = input_data.content
+        grid_w, grid_h = state["grid_size"]
+        segments = state["snake_segments"]
+        food_pos = state["food_pos"]
+
+        grid = np.zeros((grid_h, grid_w), dtype=np.uint8)
+
+        # Draw food
+        fx, fy = food_pos
+        if 0 <= fx < grid_w and 0 <= fy < grid_h:
+            grid[fy, fx] = 3
+
+        # Draw snake
+        for i, (sx, sy) in enumerate(segments):
+            if 0 <= sx < grid_w and 0 <= sy < grid_h:
+                if i == 0:
+                    grid[sy, sx] = 1 # Head
+                else:
+                    grid[sy, sx] = 2 # Body
+
+        return Observation(
+            source_node=self.name,
+            data_type="grid_map",
+            content=grid,
+            metadata={**input_data.metadata, "channels": 1}
+        )

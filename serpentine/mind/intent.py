@@ -32,3 +32,10 @@ class KeyIntent(Intent):
     type: str = "key"
     key: str
     action: str = "press"  # press, down, up
+
+class ChangeDirectionIntent(Intent):
+    """
+    Intent to change the movement direction of an entity (e.g. Snake).
+    """
+    type: str = "change_direction"
+    direction: str  # UP, DOWN, LEFT, RIGHT
