@@ -35,6 +35,7 @@ class SerpentineEngine:
         GUIEventBus.subscribe("ENGINE_SET_TPS", lambda tps: self.set_tps(tps))
         GUIEventBus.subscribe("ENGINE_SAVE_SNAPSHOT", lambda path: self.save_snapshot(path))
         GUIEventBus.subscribe("ENGINE_LOAD_SNAPSHOT", lambda path: self.load_snapshot(path))
+        GUIEventBus.subscribe("ENGINE_TOGGLE_SYSTEM", lambda data: self.toggle_system(data.get("name"), data.get("enabled")))
 
         # Instantiate systems for this mode
         self.systems: Dict[SystemPhase, List[System]] = {}
@@ -108,6 +109,27 @@ class SerpentineEngine:
             logger.error(f"Failed to load snapshot from {filepath}: {e}")
             traceback.print_exc()
 
+    def toggle_system(self, system_name: str, enabled: bool):
+        """
+        Dynamically enables or disables a system by name.
+        Note: This currently works by tracking an internal excluded set or modifying the mode_config.
+        Since systems are already instantiated, we need a way to skip them in the loop.
+        """
+        if not system_name:
+            return
+
+        logger.info(f"Toggling system {system_name} to {enabled}")
+
+        # We'll use self.mode_config["excluded_systems"] as the source of truth for dynamic runtime exclusions too.
+        excluded = self.mode_config.setdefault("excluded_systems", [])
+
+        if enabled:
+            if system_name in excluded:
+                excluded.remove(system_name)
+        else:
+            if system_name not in excluded:
+                excluded.append(system_name)
+
     def _initialize_systems(self):
         """Initializes systems based on the current engine mode."""
         logger.info(f"Initializing engine in {self.mode} mode using {self._mode_strategy.__class__.__name__}...")
@@ -116,13 +138,17 @@ class SerpentineEngine:
             system_classes = self._mode_strategy.get_systems(phase)
             initialized_systems = []
 
-            # Check exclusions from mode config
-            excluded_systems = self.mode_config.get("excluded_systems", [])
+            # Check exclusions from mode config (for initial instantiation skipping)
+            # However, for dynamic toggling, we should instantiate everything and check enabled state in the loop?
+            # Or we stick to the current design: "excluded" means "not instantiated".
+            # The user asked for "Dynamic System Toggling".
+            # If we don't instantiate it, we can't enable it later without re-initializing.
+
+            # Revised approach: Instantiate ALL systems for the mode, but check exclusion list in _tick loop.
 
             for cls in system_classes:
-                if cls.__name__ in excluded_systems:
-                    logger.info(f"Skipping excluded system: {cls.__name__}")
-                    continue
+                # We instantiate regardless of exclusion config, so we can toggle later.
+                # UNLESS the mode strategy strictly forbids it? No, Strategy returns list of classes.
 
                 metadata = Registry._system_metadata.get(cls.__name__)
                 tick_rate = metadata.tick_rate if metadata else None
@@ -192,7 +218,12 @@ class SerpentineEngine:
                     continue
 
             systems = self.systems.get(phase, [])
+            excluded_systems = self.mode_config.get("excluded_systems", [])
+
             for system in systems:
+                if system.__class__.__name__ in excluded_systems:
+                    continue
+
                 try:
                     if system.tick_rate:
                         system._accumulator += dt

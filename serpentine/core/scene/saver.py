@@ -62,8 +62,8 @@ class SceneSaver:
                 # Using print for now as logger might not be configured in this context
                 print(f"Error serializing entity {ent_dict.get('uid')}: {e}")
 
-        # 4. Global Config (Placeholder)
-        global_config: Dict[str, Any] = {}
+        # 4. Global Config
+        global_config: Dict[str, Any] = world.config
 
         # 5. Create SceneData object
         scene_data = SceneData(
