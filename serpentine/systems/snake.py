@@ -12,8 +12,101 @@ from serpentine.components.snake import SnakeBodyComponent, SnakeFoodComponent, 
 from serpentine.components.standard import StatsComponent, TransformComponent
 from serpentine.components.simulation import RewardComponent
 from serpentine.perception.components import ActionBufferComponent, PerceptionComponent
-from serpentine.mind.intent import ChangeDirectionIntent
+from serpentine.mind.intent import ChangeDirectionIntent, KeyIntent
 from serpentine.perception.types import Observation
+
+try:
+    import dearpygui.dearpygui as dpg
+except ImportError:
+    dpg = None
+
+@Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.ARCHITECT, EngineMode.TEACHER], priority=10)
+class SnakeRenderSystem(System):
+    """
+    Renders the Snake game state using DearPyGui.
+    """
+    def __init__(self, tick_rate: int = None):
+        super().__init__(tick_rate=tick_rate)
+        self.window_tag = "Snake View"
+        self.draw_node_tag = "snake_draw_node"
+        self.initialized = False
+
+    async def update(self, world: World, dt: float) -> None:
+        if not dpg or not dpg.is_dearpygui_running():
+            return
+
+        if not self.initialized:
+            if not dpg.does_item_exist(self.window_tag):
+                # Create window if not exists
+                with dpg.window(tag=self.window_tag, label="Snake Game", width=600, height=600, no_scrollbar=True):
+                    dpg.add_draw_node(tag=self.draw_node_tag)
+            self.initialized = True
+
+        # Check if window was closed by user
+        if not dpg.does_item_exist(self.window_tag):
+            self.initialized = False
+            return
+
+        # Get data
+        snakes = world.get_components(SnakeBodyComponent)
+        foods = world.get_components(SnakeFoodComponent)
+        configs = world.get_components(SnakeConfigComponent)
+        transforms = world.get_components(TransformComponent)
+
+        if not snakes:
+            return
+
+        # Assume first snake config
+        snake_id, snake = next(iter(snakes.items()))
+        config = configs.get(snake_id, next(iter(configs.values()), None))
+
+        if not config:
+            return
+
+        # Render
+        dpg.delete_item(self.draw_node_tag, children_only=True)
+
+        # Calculate scale
+        w = dpg.get_item_width(self.window_tag)
+        h = dpg.get_item_height(self.window_tag)
+
+        # Subtract some padding/title bar roughly?
+        # Actually dpg.get_item_width returns window width. Content region is safer.
+        # But for draw node, it draws relative to window content.
+
+        # Let's just use window dims for now.
+        if w < 10 or h < 10:
+            return
+
+        grid_w = config.grid_width
+        grid_h = config.grid_height
+
+        cell_w = w / grid_w
+        cell_h = (h - 20) / grid_h # Subtract title bar approx
+
+        # Draw Background
+        dpg.draw_rectangle((0, 0), (w, h), color=(0, 0, 0, 255), fill=(0, 0, 0, 255), parent=self.draw_node_tag)
+
+        # Draw Food
+        for fid, food in foods.items():
+            if fid in transforms:
+                fx = transforms[fid].x
+                fy = transforms[fid].y
+
+                p1 = (fx * cell_w, fy * cell_h)
+                p2 = ((fx + 1) * cell_w, (fy + 1) * cell_h)
+
+                dpg.draw_rectangle(p1, p2, color=(255, 0, 0, 255), fill=(255, 0, 0, 255), parent=self.draw_node_tag)
+
+        # Draw Snake
+        for seg in snake.segments:
+            sx, sy = seg
+            p1 = (sx * cell_w, sy * cell_h)
+            p2 = ((sx + 1) * cell_w, (sy + 1) * cell_h)
+
+            # Green
+            dpg.draw_rectangle(p1, p2, color=(0, 255, 0, 255), fill=(0, 255, 0, 255), parent=self.draw_node_tag)
+
 
 @Registry.register_system(phase=SystemPhase.INTERNAL_PHYSICS, modes=[EngineMode.GYMNASIUM, EngineMode.ARCHITECT, EngineMode.PRODUCTION], priority=20)
 class SnakeActionSystem(System):
@@ -39,6 +132,18 @@ class SnakeActionSystem(System):
                         intent_to_process = intent
                         params_idx = i
                         break
+                elif intent.type == "key":
+                    if isinstance(intent, KeyIntent):
+                        direction = None
+                        if intent.key == "Up": direction = "UP"
+                        elif intent.key == "Down": direction = "DOWN"
+                        elif intent.key == "Left": direction = "LEFT"
+                        elif intent.key == "Right": direction = "RIGHT"
+
+                        if direction:
+                            intent_to_process = ChangeDirectionIntent(direction=direction)
+                            params_idx = i
+                            break
 
             if intent_to_process:
                 snake.next_direction = intent_to_process.direction

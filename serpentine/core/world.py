@@ -18,6 +18,10 @@ class World:
         # Cache for query results: Tuple[ComponentType, ...] -> Set[EntityID]
         self._query_cache: Dict[Tuple[Type[BaseComponent], ...], Set[EntityID]] = {}
 
+    @property
+    def entities(self) -> Set[EntityID]:
+        return self._entities.copy()
+
     def create_entity(self, uid: Optional[UUID] = None) -> EntityID:
         entity_id = EntityID(uid) if uid else create_entity_id()
         self._entities.add(entity_id)
