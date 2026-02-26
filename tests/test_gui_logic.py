@@ -50,11 +50,6 @@ class TestGUILogic(unittest.TestCase):
         self.assertEqual(SelectionService.get_selected_type(), "ENTITY")
 
         # Check if listener was called
-        # Note: GUIEventBus stores listeners in a class variable, so state persists across tests if not cleared.
-        # But here we subscribe inside test method.
-        # However, previous tests might have subscribed too.
-        # But this is the first test method run.
-        # Still, ideally we should clear subscribers in setUp/tearDown.
         listener.assert_called()
         call_args = listener.call_args[0][0] # First arg of last call
         self.assertEqual(call_args["item"], self.e1)
@@ -69,7 +64,11 @@ class TestGUILogic(unittest.TestCase):
         self.assertIn("control_deck", tags)
         self.assertIn("outliner", tags)
         self.assertIn("inspector", tags)
-        self.assertIn("viewport", tags)
+        # Fix: viewport window tag is "viewport_window"
+        self.assertIn("viewport_window", tags)
+        # New windows
+        self.assertIn("bt_editor", tags)
+        self.assertIn("perception_editor", tags)
 
     def test_outliner_logic(self):
         """Verify Outliner populates entity list (logic check)."""
@@ -77,8 +76,6 @@ class TestGUILogic(unittest.TestCase):
         self.assertIsNotNone(outliner)
 
         # Mock DPG functions used in update
-        # dpg.get_item_children returns dict or list depending on dpg version mock.
-        # Here we mock it to return empty list.
         dpg.get_item_children.return_value = []
         dpg.delete_item.return_value = None
         dpg.add_selectable.return_value = None
@@ -97,7 +94,6 @@ class TestGUILogic(unittest.TestCase):
         user_datas = [c.kwargs.get('user_data') for c in calls]
 
         # Check if e1 and e2 are in user_datas
-        # Note: Order might vary due to set iteration order
         self.assertIn(self.e1, user_datas)
         self.assertIn(self.e2, user_datas)
 
