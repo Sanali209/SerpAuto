@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from typing import Optional, Dict, Any, List
 try:
     import pyautogui
@@ -45,6 +46,9 @@ class ActionExecutionSystem(System):
             if action:
                 self._execute(action)
                 buffer.last_executed_intent = action
+                buffer.history.append((time.time(), action))
+                if len(buffer.history) > 100:
+                    buffer.history.pop(0)
 
     def _execute(self, action: Intent):
         try:
