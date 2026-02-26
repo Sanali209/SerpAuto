@@ -4,7 +4,7 @@ This document tracks pending tasks and future improvements for the Persistence L
 
 ## From Phase 6 (Simulation & Teacher Mode)
 - [x] **Dataset Replay**: Ability to replay a recorded session in the engine. (Relevant to Persistence)
-- [ ] **HDF5 Support**: Implement binary format support for large datasets (currently only JSONL is supported).
+- [x] **HDF5 Support**: Implement binary format support for large datasets (currently only JSONL is supported).
 - [ ] **Generic Router Implementation**: Dynamic environment targeting beyond simple simulation.
 - [ ] **Shadow Mode Implementation**: Real-time AI loss monitoring.
 - [ ] **Advanced HumanInputSystem**: Mouse mapping and complex input schemes.
