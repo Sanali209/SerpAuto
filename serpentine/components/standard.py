@@ -34,3 +34,5 @@ class StatsComponent(BaseComponent):
     stamina: float = 100.0
     max_stamina: float = 100.0
     is_alive: bool = True
+    cpu_usage: float = 0.0
+    fps: float = 0.0

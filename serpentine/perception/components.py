@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 try:
     from pydantic import Field, BaseModel
 except ImportError:
@@ -33,10 +33,15 @@ class ActionBufferComponent(BaseComponent):
     Queue for pending actions (Intents) to be executed by the ActionExecutionSystem.
     """
     action_queue: List[Intent] = Field(default_factory=list)
+    shadow_queue: List[Intent] = Field(default_factory=list)
+    history: List[Tuple[float, Intent]] = Field(default_factory=list)
     last_executed_intent: Optional[Intent] = None
 
     def enqueue(self, action: Intent):
         self.action_queue.append(action)
+
+    def enqueue_shadow(self, action: Intent):
+        self.shadow_queue.append(action)
 
     def dequeue(self) -> Optional[Intent]:
         if self.action_queue:
@@ -45,3 +50,4 @@ class ActionBufferComponent(BaseComponent):
 
     def clear(self):
         self.action_queue.clear()
+        self.shadow_queue.clear()

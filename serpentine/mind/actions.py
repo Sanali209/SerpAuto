@@ -23,7 +23,10 @@ class ChangeDirectionNode(BehaviorTreeNode):
         buffer: Optional[ActionBufferComponent] = world.get_component(entity, ActionBufferComponent)
         if buffer:
             intent = ChangeDirectionIntent(direction=self.direction)
-            buffer.enqueue(intent)
+            if blackboard.get("shadow_mode"):
+                buffer.enqueue_shadow(intent)
+            else:
+                buffer.enqueue(intent)
             return Status.SUCCESS
         return Status.FAILURE
 
@@ -86,7 +89,10 @@ class ClickNode(BehaviorTreeNode):
         buffer: Optional[ActionBufferComponent] = world.get_component(entity, ActionBufferComponent)
         if buffer:
             intent = ClickIntent(x=self.x, y=self.y, button=self.button)
-            buffer.enqueue(intent)
+            if blackboard.get("shadow_mode"):
+                buffer.enqueue_shadow(intent)
+            else:
+                buffer.enqueue(intent)
             return Status.SUCCESS
         return Status.FAILURE
 
@@ -107,7 +113,10 @@ class MoveNode(BehaviorTreeNode):
         buffer: Optional[ActionBufferComponent] = world.get_component(entity, ActionBufferComponent)
         if buffer:
             intent = MoveIntent(x=self.x, y=self.y, duration=self.duration)
-            buffer.enqueue(intent)
+            if blackboard.get("shadow_mode"):
+                buffer.enqueue_shadow(intent)
+            else:
+                buffer.enqueue(intent)
             return Status.SUCCESS
         return Status.FAILURE
 
@@ -126,6 +135,9 @@ class KeyNode(BehaviorTreeNode):
         buffer: Optional[ActionBufferComponent] = world.get_component(entity, ActionBufferComponent)
         if buffer:
             intent = KeyIntent(key=self.key, action=self.action)
-            buffer.enqueue(intent)
+            if blackboard.get("shadow_mode"):
+                buffer.enqueue_shadow(intent)
+            else:
+                buffer.enqueue(intent)
             return Status.SUCCESS
         return Status.FAILURE
