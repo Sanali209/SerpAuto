@@ -37,16 +37,28 @@ class NodeMetadata(BaseModel):
 
 class Registry:
     _components: Dict[str, Type[BaseComponent]] = {}
+    _component_masks: Dict[str, int] = {}
+    _next_bit_index: int = 0
     _systems: Dict[str, Type[Any]] = {}  # Type[System] but System is not defined yet
     _system_metadata: Dict[str, SystemMetadata] = {}
+    _initial_system_metadata: Dict[str, SystemMetadata] = {}
     _nodes: Dict[str, Type[Any]] = {}
     _node_metadata: Dict[str, NodeMetadata] = {}
 
     @classmethod
     def register_component(cls, component_cls: Type[BaseComponent]) -> Type[BaseComponent]:
         """Decorator to register a component class."""
-        cls._components[component_cls.__name__] = component_cls
+        name = component_cls.__name__
+        if name not in cls._components:
+            cls._components[name] = component_cls
+            cls._component_masks[name] = 1 << cls._next_bit_index
+            cls._next_bit_index += 1
         return component_cls
+
+    @classmethod
+    def get_component_mask(cls, component_cls: Type[BaseComponent]) -> int:
+        """Returns the bitmask for a registered component."""
+        return cls._component_masks.get(component_cls.__name__, 0)
 
     @classmethod
     def register_system(cls, phase: SystemPhase, modes: Optional[List[EngineMode]] = None, priority: int = 0, tick_rate: Optional[int] = None):
@@ -64,14 +76,23 @@ class Registry:
 
         def wrapper(system_cls: Type[Any]) -> Type[Any]:
             cls._systems[system_cls.__name__] = system_cls
-            cls._system_metadata[system_cls.__name__] = SystemMetadata(
+            metadata = SystemMetadata(
                 phase=phase,
                 modes=modes,
                 priority=priority,
                 tick_rate=tick_rate
             )
+            cls._system_metadata[system_cls.__name__] = metadata
+            # Store a copy for reset
+            cls._initial_system_metadata[system_cls.__name__] = metadata.model_copy()
             return system_cls
         return wrapper
+
+    @classmethod
+    def reset_system_metadata(cls):
+        """Resets system metadata to initial registration state."""
+        for name, meta in cls._initial_system_metadata.items():
+            cls._system_metadata[name] = meta.model_copy()
 
     @classmethod
     def get_component(cls, name: str) -> Optional[Type[BaseComponent]]:

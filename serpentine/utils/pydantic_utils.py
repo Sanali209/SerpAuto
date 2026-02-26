@@ -46,7 +46,26 @@ except ImportError:
                     setattr(self, name, None)
 
         def model_dump(self, **kwargs):
-            return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+            data = {}
+            for k, v in self.__dict__.items():
+                if k.startswith("_"):
+                    continue
+                if isinstance(v, BaseModel):
+                    data[k] = v.model_dump(**kwargs)
+                elif isinstance(v, list):
+                    data[k] = [i.model_dump(**kwargs) if isinstance(i, BaseModel) else i for i in v]
+                elif isinstance(v, dict):
+                    data[k] = {dk: dv.model_dump(**kwargs) if isinstance(dv, BaseModel) else dv for dk, dv in v.items()}
+                else:
+                    data[k] = v
+            return data
+
+        def model_copy(self, deep=False):
+            """Simplified model_copy for fallback implementation."""
+            import copy
+            if deep:
+                return copy.deepcopy(self)
+            return copy.copy(self)
 
         @classmethod
         def model_validate(cls, obj):
