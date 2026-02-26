@@ -3,7 +3,9 @@ from serpentine.systems.gui.base import BaseUIWindow
 from serpentine.core.event_bus import GUIEventBus
 from serpentine.core.world import World
 from serpentine.components.simulation import DatasetConfigComponent
+from serpentine.core.registry_v2 import RegistryV2
 
+@RegistryV2.register_window(category="Controls", icon="🎮", description="Engine control and simulation settings.")
 class ControlDeck(BaseUIWindow):
     def __init__(self):
         super().__init__("control_deck", "Control Deck", width=300, height=150)
@@ -42,22 +44,22 @@ class ControlDeck(BaseUIWindow):
     def on_rec_toggle(self, sender, app_data):
         self.rec_requested = True
 
-    def on_play(self):
+    def on_play(self, sender, app_data):
         self.paused = False
         GUIEventBus.publish("ENGINE_PLAY")
 
-    def on_pause(self):
+    def on_pause(self, sender, app_data):
         self.paused = True
         GUIEventBus.publish("ENGINE_PAUSE")
 
-    def on_step(self):
+    def on_step(self, sender, app_data):
         GUIEventBus.publish("ENGINE_STEP")
 
     def on_tps_change(self, sender, app_data):
         self.tps = app_data
         GUIEventBus.publish("ENGINE_SET_TPS", self.tps)
 
-    def on_save_click(self):
+    def on_save_click(self, sender, app_data):
         dpg.add_file_dialog(
             label="Save Snapshot",
             width=600,
@@ -66,7 +68,7 @@ class ControlDeck(BaseUIWindow):
             default_filename="snapshot.json"
         )
 
-    def on_load_click(self):
+    def on_load_click(self, sender, app_data):
         dpg.add_file_dialog(
             label="Load Snapshot",
             width=600,

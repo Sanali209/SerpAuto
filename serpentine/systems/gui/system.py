@@ -2,12 +2,14 @@ import dearpygui.dearpygui as dpg
 from serpentine.systems.base import System
 from serpentine.core.world import World
 from serpentine.systems.gui.manager import WindowManager
+from serpentine.core.registry import Registry, SystemPhase, EngineMode
+from serpentine.core.registry_v2 import RegistryV2
+
+# Ensure windows are registered by importing them
 from serpentine.systems.gui.windows.control_deck import ControlDeck
 from serpentine.systems.gui.windows.outliner import Outliner
 from serpentine.systems.gui.windows.inspector import Inspector
 from serpentine.systems.gui.windows.viewport import Viewport
-from serpentine.systems.gui.base import GUIEventBus
-from serpentine.core.registry import Registry, SystemPhase, EngineMode
 
 @Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.ARCHITECT, EngineMode.TEACHER])
 class GUIDebugSystem(System):
@@ -33,11 +35,12 @@ class GUIDebugSystem(System):
         # Enable docking
         dpg.configure_app(docking=True, docking_space=True)
 
-        # Register windows
-        self.window_manager.register_window(ControlDeck())
-        self.window_manager.register_window(Outliner())
-        self.window_manager.register_window(Inspector())
-        self.window_manager.register_window(Viewport())
+        # Register windows via RegistryV2 discovery
+        for window_cls in RegistryV2.get_all_windows():
+            # Instantiate the window
+            # Assuming all windows have no-arg constructors
+            window_instance = window_cls()
+            self.window_manager.register_window(window_instance)
 
         dpg.show_viewport()
         self.dpg_context_created = True
@@ -56,8 +59,7 @@ class GUIDebugSystem(System):
             # Render frame
             dpg.render_dearpygui_frame()
         else:
-            # If DPG window is closed, stop the engine?
-            # Or just stop GUI updates.
+            # If DPG window is closed
             pass
 
     def shutdown(self):

@@ -9,7 +9,9 @@ except ImportError:
 from serpentine.systems.gui.base import BaseUIWindow
 from serpentine.core.world import World
 from serpentine.core.event_bus import GUIEventBus
+from serpentine.core.registry_v2 import RegistryV2
 
+@RegistryV2.register_window(category="View", icon="👁️", description="Rendered view of the simulation.")
 class Viewport(BaseUIWindow):
     def __init__(self):
         super().__init__("viewport_window", "Perception Viewport", width=640, height=480)
