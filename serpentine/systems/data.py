@@ -1,14 +1,158 @@
 import json
 import logging
 from typing import Optional, Dict, Any
+import os
+import time
+from datetime import datetime
 from serpentine.core.registry import Registry, SystemPhase, EngineMode
 from serpentine.systems.base import System
 from serpentine.core.world import World
 from serpentine.components.simulation import DatasetConfigComponent, RewardComponent
 from serpentine.perception.components import ActionBufferComponent
 from serpentine.components.standard import TransformComponent
+from serpentine.core.event_bus import GUIEventBus
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
+
+@Registry.register_system(phase=SystemPhase.INPUT, modes=[EngineMode.ARCHITECT])
+class DatasetReplaySystem(System):
+    """
+    Replays a dataset file by applying recorded actions/states to entities.
+    Configure via World.config['replay']:
+        dataset_path: str
+        enabled: bool
+    """
+    def __init__(self, tick_rate: int = None):
+        super().__init__(tick_rate=tick_rate)
+        self.file_handle = None
+        self.dataset_path = None
+        self.finished = False
+
+    async def update(self, world: World, dt: float) -> None:
+        config = world.config.get("replay", {})
+        if not config.get("enabled", False):
+            return
+
+        path = config.get("dataset_path")
+        if not path or not os.path.exists(path):
+            return
+
+        if self.dataset_path != path:
+            # New dataset
+            if self.file_handle:
+                self.file_handle.close()
+            try:
+                self.file_handle = open(path, 'r')
+                self.dataset_path = path
+                self.finished = False
+                logger.info(f"Started replaying dataset: {path}")
+            except Exception as e:
+                logger.error(f"Failed to open replay dataset: {e}")
+                return
+
+        if self.finished or not self.file_handle:
+            return
+
+        try:
+            line = self.file_handle.readline()
+            if not line:
+                self.finished = True
+                logger.info("Replay finished.")
+                return
+
+            entry = json.loads(line)
+
+            # Apply state/action
+            # In a real replay, we might need to sync time or wait
+            # For now, we apply one step per tick
+
+            entity_id_str = entry.get("entity_id")
+            if not entity_id_str:
+                return
+
+            # Attempt to find entity.
+            # Note: IDs might not match if we didn't restore a snapshot first!
+            # Assuming we are replaying on top of the correct initial state.
+
+            # TODO: Handle ID mapping if needed. For now assume UUID matches.
+
+            # Apply Transform
+            state = entry.get("state")
+            if state:
+                # We need to find the entity. World stores by ID but we only have string.
+                # Ineffecient search?
+                # Actually world._components keys are EntityID (UUID).
+                try:
+                    target_uuid = UUID(entity_id_str)
+                    # We can't easily check existence without iterating or try/catch on get_component?
+                    # get_component handles it.
+
+                    # Create a dummy EntityID wrapper if needed, but UUID should work for lookup if key is UUID
+                    # Python dict lookup with UUID object works.
+
+                    # Wait, EntityID is NewType('EntityID', UUID).
+
+                    transform = world.get_component(target_uuid, TransformComponent)
+                    if transform:
+                        transform.x = state.get("x", transform.x)
+                        transform.y = state.get("y", transform.y)
+                        transform.rotation = state.get("rotation", transform.rotation)
+
+                except ValueError:
+                    pass
+
+        except json.JSONDecodeError:
+            pass
+        except Exception as e:
+            logger.error(f"Error during replay: {e}")
+
+@Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.TEACHER, EngineMode.ARCHITECT])
+class AutoSaveSystem(System):
+    """
+    Periodically saves the world state to an autosave file.
+    Configuration via World.config['autosave']:
+        enabled: bool (default True)
+        interval: float (seconds, default 300)
+        max_saves: int (default 5)
+    """
+    def __init__(self, tick_rate: int = None):
+        super().__init__(tick_rate=tick_rate)
+        self.last_save_time = time.time()
+        self.save_index = 0
+
+    async def update(self, world: World, dt: float) -> None:
+        config = world.config.get("autosave", {})
+        enabled = config.get("enabled", True)
+        if not enabled:
+            return
+
+        interval = config.get("interval", 300.0) # 5 minutes default
+        current_time = time.time()
+
+        if current_time - self.last_save_time >= interval:
+            self.last_save_time = current_time
+            self.perform_autosave(world, config)
+
+    def perform_autosave(self, world: World, config: Dict[str, Any]):
+        try:
+            autosave_dir = "autosaves"
+            if not os.path.exists(autosave_dir):
+                os.makedirs(autosave_dir)
+
+            max_saves = config.get("max_saves", 5)
+            filename = f"autosave_{self.save_index}.json"
+            filepath = os.path.join(autosave_dir, filename)
+
+            # Use EventBus to request save, decoupled from engine instance
+            GUIEventBus.publish("ENGINE_SAVE_SNAPSHOT", filepath)
+
+            logger.info(f"Auto-save triggered: {filepath}")
+
+            self.save_index = (self.save_index + 1) % max_saves
+        except Exception as e:
+            logger.error(f"Auto-save failed: {e}")
+
 
 @Registry.register_system(phase=SystemPhase.TELEMETRY, modes=[EngineMode.TEACHER, EngineMode.GYMNASIUM])
 class DatasetLoggerSystem(System):

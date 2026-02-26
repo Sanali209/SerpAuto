@@ -1,6 +1,7 @@
 import asyncio
 import time
 import json
+import gzip
 import traceback
 from typing import List, Dict, Type, Any
 
@@ -73,8 +74,14 @@ class SerpentineEngine:
 
         try:
             snapshot = self.world.take_snapshot()
-            with open(filepath, 'w') as f:
-                json.dump(snapshot, f, indent=2)
+
+            if filepath.endswith('.gz'):
+                with gzip.open(filepath, 'wt', encoding='utf-8') as f:
+                    json.dump(snapshot, f)
+            else:
+                with open(filepath, 'w') as f:
+                    json.dump(snapshot, f, indent=2)
+
             logger.info(f"Snapshot saved to {filepath}")
         except Exception as e:
             logger.error(f"Failed to save snapshot to {filepath}: {e}")
@@ -86,8 +93,13 @@ class SerpentineEngine:
             return
 
         try:
-            with open(filepath, 'r') as f:
-                snapshot = json.load(f)
+            if filepath.endswith('.gz'):
+                with gzip.open(filepath, 'rt', encoding='utf-8') as f:
+                    snapshot = json.load(f)
+            else:
+                with open(filepath, 'r') as f:
+                    snapshot = json.load(f)
+
             self.world.restore_snapshot(snapshot)
             logger.info(f"Snapshot loaded from {filepath}")
         except Exception as e:
