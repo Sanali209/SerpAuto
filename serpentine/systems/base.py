@@ -26,3 +26,11 @@ class System(ABC):
             dt: Delta time since the last frame (in seconds).
         """
         pass
+
+    def reset(self, world: World) -> None:
+        """
+        Resets the system's internal state.
+        Called during environment resets (e.g. Gym).
+        Default implementation clears the accumulator.
+        """
+        self._accumulator = 0.0

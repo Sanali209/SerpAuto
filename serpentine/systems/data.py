@@ -13,6 +13,13 @@ from serpentine.components.standard import TransformComponent
 from serpentine.core.event_bus import GUIEventBus
 from uuid import UUID
 
+try:
+    import h5py
+    import numpy as np
+except ImportError:
+    h5py = None
+    np = None
+
 logger = logging.getLogger(__name__)
 
 @Registry.register_system(phase=SystemPhase.INPUT, modes=[EngineMode.ARCHITECT])
@@ -158,10 +165,14 @@ class AutoSaveSystem(System):
 class DatasetLoggerSystem(System):
     """
     Logs state-action pairs to a dataset file.
+    Supports JSONL (default) and HDF5 (if extension is .h5 or .hdf5).
     """
     def __init__(self, tick_rate: int = None):
         super().__init__(tick_rate=tick_rate)
         self.file_handles: Dict[str, Any] = {}
+        # For HDF5, we need to buffer data or resize datasets.
+        # Simpler approach: List buffer, then flush to resize.
+        self.h5_buffers: Dict[str, List[Dict]] = {}
 
     async def update(self, world: World, dt: float) -> None:
         entities = world.get_entities_with(DatasetConfigComponent)
@@ -173,11 +184,20 @@ class DatasetLoggerSystem(System):
 
             path = config.dataset_path
             active_paths.add(path)
+            is_h5 = path.endswith('.h5') or path.endswith('.hdf5')
+
+            if is_h5 and not h5py:
+                logger.warning("H5PY not installed, skipping HDF5 logging.")
+                continue
 
             # Ensure file is open
             if path not in self.file_handles:
                 try:
-                    self.file_handles[path] = open(path, "a")
+                    if is_h5:
+                        self.file_handles[path] = h5py.File(path, 'a')
+                        self.h5_buffers[path] = []
+                    else:
+                        self.file_handles[path] = open(path, "a")
                 except Exception as e:
                     logger.error(f"Failed to open dataset file {path}: {e}")
                     continue
@@ -209,11 +229,17 @@ class DatasetLoggerSystem(System):
                 entry["reward"] = reward.last_action_reward
                 entry["cumulative_reward"] = reward.cumulative_reward
 
-            # Write to file
+            # Write to file or buffer
             try:
-                handle = self.file_handles[path]
-                handle.write(json.dumps(entry) + "\n")
-                handle.flush() # Ensure data is written immediately
+                if is_h5:
+                    # Buffer for batch write (HDF5 is slow for row-by-row append)
+                    self.h5_buffers[path].append(entry)
+                    if len(self.h5_buffers[path]) >= 100:
+                        self._flush_h5(path)
+                else:
+                    handle = self.file_handles[path]
+                    handle.write(json.dumps(entry) + "\n")
+                    handle.flush() # Ensure data is written immediately
             except Exception as e:
                 logger.error(f"Failed to write to dataset {path}: {e}")
 
@@ -222,10 +248,98 @@ class DatasetLoggerSystem(System):
         paths_to_close = [p for p in self.file_handles if p not in active_paths]
         for path in paths_to_close:
             try:
+                if path in self.h5_buffers and self.h5_buffers[path]:
+                    self._flush_h5(path)
                 self.file_handles[path].close()
             except Exception as e:
                 logger.error(f"Error closing file {path}: {e}")
             del self.file_handles[path]
+            if path in self.h5_buffers:
+                del self.h5_buffers[path]
+
+    def _flush_h5(self, path: str):
+        """Flushes buffered data to HDF5 file."""
+        if not h5py or path not in self.file_handles:
+            return
+
+        f = self.file_handles[path]
+        buffer = self.h5_buffers[path]
+        if not buffer:
+            return
+
+        # Simple HDF5 structure:
+        # /data (compound dataset or groups)
+        # Flattening structure for simplicity: Arrays of floats.
+        # Handling strings (entity_id, intent type) is tricky in HDF5 fixed types.
+        # For now, let's serialize the JSON entry as a string attribute or just skip complex nested structures?
+        # A common RL pattern: 'observations', 'actions', 'rewards', 'terminals' datasets.
+
+        # Let's verify groups exist
+        if "observations" not in f:
+            # Create resizable datasets
+            f.create_dataset("step_dt", shape=(0,), maxshape=(None,), dtype='f4')
+            f.create_dataset("rewards", shape=(0,), maxshape=(None,), dtype='f4')
+            # Assuming state x,y,rot
+            f.create_dataset("observations", shape=(0, 3), maxshape=(None, 3), dtype='f4')
+            # Actions? Complex. Just store primitive index?
+            # Or strings?
+            dt = h5py.special_dtype(vlen=str)
+            f.create_dataset("actions", shape=(0,), maxshape=(None,), dtype=dt)
+            f.create_dataset("entity_ids", shape=(0,), maxshape=(None,), dtype=dt)
+
+        # Prepare batch data
+        dts = []
+        rewards = []
+        obs = []
+        actions = []
+        eids = []
+
+        for entry in buffer:
+            dts.append(entry["step_dt"])
+
+            rew = 0.0
+            if entry.get("reward") is not None:
+                 # Dictionary handling? Code above puts floats.
+                 # Actually code puts dict? No: entry["reward"] = reward.last_action_reward
+                 # Wait, code above:
+                 # if reward: entry["reward"] = ...
+                 # Yes it's float.
+                 rew = entry.get("reward", 0.0)
+            rewards.append(rew)
+
+            state = entry.get("state", {})
+            obs.append([state.get("x", 0), state.get("y", 0), state.get("rotation", 0)])
+
+            act = entry.get("action")
+            actions.append(json.dumps(act) if act else "")
+
+            eids.append(entry["entity_id"])
+
+        # Resize and append
+        n = len(buffer)
+
+        dset_dt = f["step_dt"]
+        dset_dt.resize((dset_dt.shape[0] + n), axis=0)
+        dset_dt[-n:] = dts
+
+        dset_rew = f["rewards"]
+        dset_rew.resize((dset_rew.shape[0] + n), axis=0)
+        dset_rew[-n:] = rewards
+
+        dset_obs = f["observations"]
+        dset_obs.resize((dset_obs.shape[0] + n), axis=0)
+        dset_obs[-n:] = obs
+
+        dset_act = f["actions"]
+        dset_act.resize((dset_act.shape[0] + n), axis=0)
+        dset_act[-n:] = actions
+
+        dset_eid = f["entity_ids"]
+        dset_eid.resize((dset_eid.shape[0] + n), axis=0)
+        dset_eid[-n:] = eids
+
+        # Clear buffer
+        buffer.clear()
 
 @Registry.register_system(phase=SystemPhase.REWARD, modes=[EngineMode.TEACHER, EngineMode.GYMNASIUM])
 class EnvironmentJudgeSystem(System):

@@ -3,7 +3,7 @@
 This document tracks pending tasks and future improvements for the Engine Modes and Orchestration.
 
 ## From Phase 7 (Persistence)
-- [ ] **Dataset Replay**: Ability to replay a recorded session in the engine. (Relevant to Persistence)
+- [x] **Dataset Replay**: Ability to replay a recorded session in the engine. (Relevant to Persistence)
 - [ ] **HDF5 Support**: Implement binary format support for large datasets (currently only JSONL is supported).
 - [ ] **Generic Router Implementation**: Dynamic environment targeting beyond simple simulation.
 - [ ] **Shadow Mode Implementation**: Real-time AI loss monitoring.

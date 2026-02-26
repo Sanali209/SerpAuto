@@ -3,7 +3,7 @@
 This document tracks pending tasks and future improvements for the Persistence Layer and State Management.
 
 ## From Phase 6 (Simulation & Teacher Mode)
-- [ ] **Dataset Replay**: Ability to replay a recorded session in the engine. (Relevant to Persistence)
+- [x] **Dataset Replay**: Ability to replay a recorded session in the engine. (Relevant to Persistence)
 - [ ] **HDF5 Support**: Implement binary format support for large datasets (currently only JSONL is supported).
 - [ ] **Generic Router Implementation**: Dynamic environment targeting beyond simple simulation.
 - [ ] **Shadow Mode Implementation**: Real-time AI loss monitoring.
@@ -17,5 +17,5 @@ This document tracks pending tasks and future improvements for the Persistence L
 - [ ] **Deterministic Replay**: Ensure RNG seeding is serialized in snapshots for perfect reproduction.
 - [ ] **Blueprints System**: Implement reusable configurations for Behavior Trees and Perception DAGs (beyond basic loading).
 - [ ] **Registry Versioning**: Handle schema migrations for components when loading old snapshots.
-- [ ] **Auto-Save**: Implement periodic auto-saves during simulation.
-- [ ] **Snapshot Compression**: Use GZIP or similar for JSON snapshots to reduce disk usage.
+- [x] **Auto-Save**: Implement periodic auto-saves during simulation.
+- [x] **Snapshot Compression**: Use GZIP or similar for JSON snapshots to reduce disk usage.

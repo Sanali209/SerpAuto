@@ -11,12 +11,14 @@ from serpentine.systems.base import System
 from serpentine.utils.logging import configure_logging
 from serpentine.core.event_bus import GUIEventBus
 from serpentine.modes import ArchitectMode, ProductionMode, GymnasiumMode, TeacherMode, ModeStrategy
+from serpentine.modes.config_loader import ModeConfigLoader
 
 logger = configure_logging()
 
 class SerpentineEngine:
-    def __init__(self, mode: EngineMode = EngineMode.ARCHITECT, target_tps: int = 60):
+    def __init__(self, mode: EngineMode = EngineMode.ARCHITECT, target_tps: int = 60, config_path: str = None):
         self.mode = mode
+        self.mode_config = ModeConfigLoader.load_config(config_path) if config_path else {}
         self._mode_strategy: ModeStrategy = self._create_mode_strategy(mode)
         self.world = World()
         self.is_running = False
@@ -114,9 +116,20 @@ class SerpentineEngine:
             system_classes = self._mode_strategy.get_systems(phase)
             initialized_systems = []
 
+            # Check exclusions from mode config
+            excluded_systems = self.mode_config.get("excluded_systems", [])
+
             for cls in system_classes:
+                if cls.__name__ in excluded_systems:
+                    logger.info(f"Skipping excluded system: {cls.__name__}")
+                    continue
+
                 metadata = Registry._system_metadata.get(cls.__name__)
                 tick_rate = metadata.tick_rate if metadata else None
+
+                # Override tick_rate from config if present
+                if "tick_rates" in self.mode_config and cls.__name__ in self.mode_config["tick_rates"]:
+                    tick_rate = self.mode_config["tick_rates"][cls.__name__]
 
                 # Instantiate with tick_rate if the system supports it in __init__
                 # Our base System now supports it.
