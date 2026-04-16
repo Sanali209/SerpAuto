@@ -12,8 +12,8 @@ def pytest_configure(config):
         dpg_mock = MagicMock()
 
         # Setup common dpg constants/functions that might be accessed
-        dpg_mock.mvNode_Attribute_Input = 0
-        dpg_mock.mvNode_Attribute_Output = 1
+        dpg_mock.mvNode_Attr_Input = 0
+        dpg_mock.mvNode_Attr_Output = 1
         dpg_mock.mvNodeCol_TitleBar = 0
         dpg_mock.mvThemeCat_Core = 0
         dpg_mock.mvNode = 0

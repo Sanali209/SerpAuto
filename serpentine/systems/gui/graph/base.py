@@ -65,12 +65,12 @@ class BaseNodeCanvas:
         with dpg.node(tag=node_tag, parent=self.tag, label=label, pos=pos):
             # Input attributes
             for attr_tag, attr_label in inputs:
-                with dpg.node_attribute(tag=attr_tag, attribute_type=dpg.mvNode_Attribute_Input):
+                with dpg.node_attribute(tag=attr_tag, attribute_type=dpg.mvNode_Attr_Input):
                     dpg.add_text(attr_label)
 
             # Output attributes
             for attr_tag, attr_label in outputs:
-                with dpg.node_attribute(tag=attr_tag, attribute_type=dpg.mvNode_Attribute_Output):
+                with dpg.node_attribute(tag=attr_tag, attribute_type=dpg.mvNode_Attr_Output):
                     dpg.add_text(attr_label)
 
         if color:
