@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 1: Surface Scan — Serpentine Engine</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  h3 { color:#8b949e; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  th { color:#8b949e; }
+  a { color:#58a6ff; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 1/14</span>
+<h1>🔍 Surface Scan — Serpentine Engine</h1>
+<p><strong>Serpentine Engine</strong> — игровой ECS-движок на Python с Behaviour Tree AI, perception/vision pipeline, ModernGL-рендерингом, Desktop GUI (Dear PyGui) и Gymnasium-обёрткой для RL.</p>
+
+<h2>📊 Периметр</h2>
+<table>
+<tr><td>Всего файлов</td><td>77 Python + конфиги</td></tr>
+<tr><td>Строк кода (Python)</td><td>~6 775</td></tr>
+<tr><td>Тестов</td><td>12 файлов</td></tr>
+<tr><td>Документация</td><td>des_docs/ (~25 md), docs/ (~6 md)</td></tr>
+</table>
+
+<h3>Структура директорий</h3>
+<pre>
+serpentine/
+├── components/       # ECS Components (data)
+│   ├── physics.py    # ColliderComponent
+│   ├── rendering.py  # Camera, Mesh, Material
+│   ├── simulation.py # Reward, Goal, DatasetConfig, InputControl
+│   ├── snake.py      # SnakeBody, SnakeFood, SnakeConfig
+│   ├── standard.py   # Transform, Stats
+│   └── swarm.py      # AgentMeta, Mailbox
+├── core/             # Core engine
+│   ├── engine.py     # SerpentineEngine (main loop)
+│   ├── world.py      # ECS World (entities, components, queries)
+│   ├── entity.py     # EntityID (UUID)
+│   ├── component.py  # BaseComponent (Pydantic)
+│   ├── event_bus.py  # EventBus (pub/sub)
+│   ├── messages.py   # SwarmMessage
+│   ├── registry.py   # Registry (decorators: register_component/system/node)
+│   ├── registry_v2.py# RegistryV2 (v2 with windows)
+│   ├── selection.py  # SelectionService
+│   ├── gym_wrapper.py # Gymnasium Env wrapper
+│   └── scene/        # Scene saving/loading
+├── mind/             # AI / Behavior Tree
+│   ├── core.py       # BehaviorTreeNode, Blackboard, Status
+│   ├── brain.py      # BrainComponent, AI_BrainSystem
+│   ├── actions.py    # ChangeDirection, Wait, Click, Move, Key
+│   ├── composites.py # Sequence, Selector, Parallel
+│   ├── decorators.py # Inverter, Succeeder, RepeatUntilFail
+│   ├── intent.py     # Intent hierarchy (Click, Move, Key, ChangeDir)
+│   ├── llm.py        # LLMInferenceNode, AIAdapter
+│   └── swarm_nodes.py# SendMessage, ListenForEvent
+├── perception/       # Vision / Perception pipeline
+│   ├── types.py      # Observation (Pydantic)
+│   ├── components.py # PerceptionComponent, ActionBufferComponent
+│   ├── nodes.py      # CVNode, Crop, Grayscale, TemplateMatch, OCR, DOM, GridMapper
+│   ├── pipeline.py   # PerceptionPipelineSystem
+│   ├── ingestion.py  # SensoryInputSystem, InternalStateReaderSystem
+│   └── actions.py    # ActionExecutionSystem (PyAutoGUI)
+├── systems/          # ECS Systems (logic)
+│   ├── base.py       # System (abstract)
+│   ├── snake.py      # SnakeAction, Locomotion, Collision, StateReader
+│   ├── input.py      # HumanInputSystem (DearPyGui keys)
+│   ├── data.py       # DatasetLogger, EnvironmentJudge
+│   ├── possession.py # PossessionSystem (raycast click-to-possess)
+│   ├── swarm.py      # MessageRouterSystem
+│   ├── auto_ui_builder.py # AutoUIBuilder (Pydantic→DPG widgets)
+│   ├── gui/
+│   │   ├── base.py     # BaseUIWindow
+│   │   ├── manager.py  # WindowManager
+│   │   ├── system.py   # GUIDebugSystem (main DPG loop)
+│   │   ├── style.py    # Colors, fonts
+│   │   ├── selection.py # SelectionService (duplicate)
+│   │   └── windows/    # 7 GUI windows
+│   │       ├── control_deck.py   # Play/Pause/TPS/Record
+│   │       ├── inspector.py      # Entity inspector
+│   │       ├── outliner.py       # World outliner
+│   │       ├── viewport.py       # 3D viewport
+│   │       ├── roster.py         # Swarm roster table
+│   │       ├── timeline.py       # Action timeline
+│   │       └── imitation.py      # Imitation learning monitor
+│   │   └── graph/    # Node editors
+│   │       ├── base.py           # BaseNodeCanvas
+│   │       ├── bt_editor.py      # Behavior Tree editor
+│   │       └── perception_editor.py # Perception pipeline editor
+│   └── render/
+│       ├── context.py # RenderContext (ModernGL singleton)
+│       ├── system.py  # RenderSystem (cube rendering)
+│       └── raycast.py # Ray, intersections (box/sphere)
+├── modes/            # Mode strategies
+│   ├── base.py       # ModeStrategy (abstract)
+│   ├── architect.py  # Full GUI + dev
+│   ├── production.py # Headless + optimized
+│   ├── gymnasium.py  # RL training
+│   └── teacher.py    # Human demo recording
+└── utils/
+    ├── logging.py    # Loguru wrapper
+    └── pydantic_utils.py # Pydantic fallback
+</pre>
+
+<h2>📦 Dependencies (requirements.txt)</h2>
+<table>
+<tr><th>Библиотека</th><th>Версия</th><th>Назначение</th></tr>
+<tr><td>numpy</td><td>>=1.24.0</td><td>Численные расчёты, массивы</td></tr>
+<tr><td>moderngl</td><td>>=5.8.0</td><td>OpenGL-рендеринг (3D)</td></tr>
+<tr><td>glfw</td><td>>=2.5.9</td><td>Оконный менеджер GLFW</td></tr>
+<tr><td>PyGLM</td><td>>=2.7.0</td><td>Математика для 3D</td></tr>
+<tr><td>httpx</td><td>==0.28.1</td><td>HTTP-клиент</td></tr>
+<tr><td>pydantic</td><td>==2.12.5</td><td>Валидация данных, модели</td></tr>
+<tr><td>mss</td><td>>=9.0.1</td><td>Скриншоты экрана</td></tr>
+<tr><td>opencv-python</td><td>>=4.8.1</td><td>Компьютерное зрение</td></tr>
+<tr><td>onnxruntime</td><td>>=1.16.3</td><td>ONNX inference (ML)</td></tr>
+<tr><td>ultralytics</td><td>>=8.0.0</td><td>YOLO object detection</td></tr>
+<tr><td>pyautogui</td><td>>=0.9.54</td><td>Управление мышью/клавиатурой</td></tr>
+<tr><td>dearpygui</td><td>>=1.10.0</td><td>Desktop GUI</td></tr>
+<tr><td>fastapi</td><td>>=0.103.0</td><td>REST API bridge</td></tr>
+<tr><td>uvicorn</td><td>>=0.23.0</td><td>ASGI-сервер</td></tr>
+<tr><td>pytesseract</td><td>>=0.3.10</td><td>OCR (Tesseract)</td></tr>
+<tr><td>playwright</td><td>>=1.40.0</td><td>Браузерная автоматизация</td></tr>
+</table>
+
+<h2>🏗️ Режимы Engine (EngineMode)</h2>
+<table>
+<tr><th>Режим</th><th>Описание</th><th>Системы</th></tr>
+<tr><td>ARCHITECT</td><td>Полное GUI, отладка</td><td>Все системы, включая GUI</td></tr>
+<tr><td>PRODUCTION</td><td>Headless, оптимизация</td><td>Без GUI-систем</td></tr>
+<tr><td>TEACHER</td><td>Запись демо от человека</td><td>HumanInput + DatasetLogger + GUI</td></tr>
+<tr><td>GYMNASIUM</td><td>RL обучение</td><td>Snake + Reward + Perception</td></tr>
+<tr><td>CONTINUOUS_LEARNING</td><td>Не реализован</td><td>—</td></tr>
+</table>
+
+<h2>🔧 Engine Phases (SystemPhase)</h2>
+<table>
+<tr><th>Фаза</th><th>Порядок</th><th>Назначение</th></tr>
+<tr><td>INPUT</td><td>1</td><td>Ввод (клавиатура, скриншоты)</td></tr>
+<tr><td>MAIL_ROUTING</td><td>2</td><td>Маршрутизация сообщений swarm</td></tr>
+<tr><td>PERCEPTION</td><td>3</td><td>CV pipeline</td></tr>
+<tr><td>INTERNAL_PHYSICS</td><td>4</td><td>Физика, столкновения, движение</td></tr>
+<tr><td>COGNITION</td><td>5</td><td>Behavior Tree AI</td></tr>
+<tr><td>EXECUTION</td><td>6</td><td>Исполнение действий (PyAutoGUI)</td></tr>
+<tr><td>REWARD</td><td>7</td><td>Reward signals для RL</td></tr>
+<tr><td>TELEMETRY</td><td>8</td><td>GUI + Рендеринг</td></tr>
+</table>
+
+<h2>💡 Ключевые концепции</h2>
+
+<div class="concept">
+<h4>1. Strategy Pattern для режимов</h4>
+<p>Каждый режим (Architect, Production, Gymnasium, Teacher) — отдельный класс ModeStrategy, определяющий набор систем для каждой фазы. Позволяет переиспользовать системы между режимами.</p>
+</div>
+
+<div class="concept">
+<h4>2. Decorator-based Registry</h4>
+<p>Компоненты, системы и BT-ноды регистрируются через декораторы (@Registry.register_component, @Registry.register_system, @Registry.register_node). Registry хранит метаданные (фаза, режим, приоритет, tick_rate) для интроспекции.</p>
+</div>
+
+<div class="concept">
+<h4>3. Fixed vs Variable Timestep</h4>
+<p>Системы могут иметь собственный tick_rate — фиксированный шаг по времени с аккумулятором, независимо от TPS движка. Engine поддерживает Play/Pause/Step.</p>
+</div>
+
+<div class="concept">
+<h4>4. Intent → Action Pipeline</h4>
+<p>Модуль Mind (BT) генерирует Intents → ActionBufferComponent (очередь) → ActionExecutionSystem (PyAutoGUI). Двойные очереди (action/shadow) для imitation learning.</p>
+</div>
+
+<div class="concept">
+<h4>5. Event Bus Decoupling</h4>
+<p>GUI ↔ Engine коммуникация через EventBus (паттерн pub/sub). GUIEventBus для UI-событий (Play/Pause, клики по viewport).</p>
+</div>
+
+<div class="concept">
+<h4>6. Pydantic-first Data Layer</h4>
+<p>Все компоненты, сообщения, наблюдения — Pydantic BaseModel с валидацией. Есть fallback без Pydantic.</p>
+</div>
+
+<div class="concept">
+<h4>7. Auto UI Builder</h4>
+<p>AutoUIBuilder генерирует DearPyGui-виджеты из Pydantic-моделей (поля типов str/int/float/bool/Enum → input/drag/checkbox/combo).</p>
+</div>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ Все файлы учтены (77 .py)</li>
+<li>✅ Конфигурации прочитаны (requirements.txt, .gitignore)</li>
+<li>✅ Зависимости задокументированы (16 библиотек)</li>
+<li>✅ Концепции выделены (7 ключевых)</li>
+<li>✅ Cross-links: <a href="02-entity-model.html">→ Шаг 2</a>, <a href="10-architecture.html">→ Шаг 10</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+<p><em>Updated: 2026-05-26 | Pass 1</em></p>
+</body>
+</html>

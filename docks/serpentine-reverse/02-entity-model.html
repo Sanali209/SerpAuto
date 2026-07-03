@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 2: Entity System — Serpentine Engine</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  th { color:#8b949e; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .entity { border:1px solid #30363d; border-radius:6px; padding:1rem; margin:1rem 0; }
+  .entity h3 { margin:0 0 .5rem 0; color:#7ee787; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 2/14</span>
+<h1>📊 Entity System — ECS Models & Types</h1>
+
+<h2>🏛️ Core ECS</h2>
+
+<div class="entity">
+<h3>EntityID</h3>
+<p><code>serpentine/core/entity.py</code> — NewType над UUID. Сущности — просто UUID-идентификаторы.</p>
+</div>
+
+<div class="entity">
+<h3>BaseComponent</h3>
+<p><code>serpentine/core/component.py</code> — Pydantic BaseModel с ConfigDict(arbitrary_types_allowed=True). База для всех компонентов.</p>
+</div>
+
+<div class="entity">
+<h3>World</h3>
+<p><code>serpentine/core/world.py</code> — Хранит Set[EntityID] и Dict[Type[Component], Dict[EntityID, Component]]. Кэширует запросы (query_cache). Операции: create/delete entity, add/remove/get/has component, get_entities_with (cache-инвалидация), snapshot/restore (сериализация JSON).</p>
+</div>
+
+<h2>📋 Все компоненты</h2>
+
+<h3>standard.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>TransformComponent</td><td>x, y, rotation, scale_x, scale_y, parent, children</td><td>Позиция + иерархия</td></tr>
+<tr><td>StatsComponent</td><td>health, max_health, stamina, max_stamina, is_alive, cpu_usage, fps</td><td>Игровая статистика</td></tr>
+</table>
+
+<h3>physics.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>ColliderComponent</td><td>shape (box/sphere), size, radius, offset, is_trigger</td><td>Коллизии</td></tr>
+</table>
+
+<h3>rendering.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>CameraComponent</td><td>fov, near, far, is_orthographic, ortho_size, aspect_ratio</td><td>Камера</td></tr>
+<tr><td>MeshComponent</td><td>mesh_path, primitive_type, color</td><td>Сетка</td></tr>
+<tr><td>MaterialComponent</td><td>shader_name, texture_path, color</td><td>Материал</td></tr>
+</table>
+
+<h3>snake.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>SnakeBodyComponent</td><td>segments, current_direction, next_direction, last_tail_pos</td><td>Тело змейки</td></tr>
+<tr><td>SnakeFoodComponent</td><td>value (score/growth)</td><td>Еда</td></tr>
+<tr><td>SnakeConfigComponent</td><td>grid_width, grid_height, cell_size, move_interval, last_move_time</td><td>Конфиг игры</td></tr>
+</table>
+
+<h3>simulation.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>RewardComponent</td><td>current_reward, cumulative_reward, last_action_reward</td><td>RL reward</td></tr>
+<tr><td>GoalComponent</td><td>goal_state, is_active, is_completed, is_failed</td><td>Цели</td></tr>
+<tr><td>DatasetConfigComponent</td><td>dataset_path, format, is_recording</td><td>Логирование датасета</td></tr>
+<tr><td>InputControlComponent</td><td>enabled</td><td>Тег: управляем человеком</td></tr>
+</table>
+
+<h3>swarm.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>AgentMetaComponent</td><td>role, status, agent_name</td><td>Метаданные агента</td></tr>
+<tr><td>MailboxComponent</td><td>inbox, outbox (List[SwarmMessage])</td><td>Почтовый ящик</td></tr>
+</table>
+
+<h3>perception/components.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>PerceptionComponent</td><td>observations (Dict[str, Observation]), debug_data</td><td>Сенсорные данные</td></tr>
+<tr><td>ActionBufferComponent</td><td>action_queue, shadow_queue, history, last_executed_intent</td><td>Очередь действий</td></tr>
+</table>
+
+<h3>mind/brain.py</h3>
+<table>
+<tr><th>Компонент</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>BrainComponent</td><td>root (BehaviorTreeNode), blackboard (Blackboard), active</td><td>BT + память</td></tr>
+</table>
+
+<h2>📨 SwarmMessage</h2>
+<p><code>serpentine/core/messages.py</code> — Pydantic: sender_id, recipient_id (опционально = broadcast), topic, payload, timestamp, ttl (5с).</p>
+
+<h2>🔍 Observation</h2>
+<p><code>serpentine/perception/types.py</code> — source_node, timestamp, data_type (image/text/dom/grid/grid_map), content, metadata.</p>
+
+<h2>🧠 Intent Hierarchy</h2>
+<table>
+<tr><th>Класс</th><th>Поля</th><th>Назначение</th></tr>
+<tr><td>Intent (base)</td><td>type, target, params</td><td>Базовое намерение</td></tr>
+<tr><td>ClickIntent</td><td>x, y, button</td><td>Клик мыши</td></tr>
+<tr><td>MoveIntent</td><td>x, y, duration</td><td>Движение мыши</td></tr>
+<tr><td>KeyIntent</td><td>key, action (press/down/up)</td><td>Клавиша</td></tr>
+<tr><td>ChangeDirectionIntent</td><td>direction (UP/DOWN/LEFT/RIGHT)</td><td>Смена направления</td></tr>
+</table>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 15+ компонентов описаны</li>
+<li>✅ Связи: все компоненты используют ECS World</li>
+<li>✅ Сериализация: все Pydantic → JSON (snapshot)</li>
+<li>✅ Cross-links: <a href="01-surface-scan.html">← Шаг 1</a>, <a href="06-data-pipeline.html">→ Шаг 6</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

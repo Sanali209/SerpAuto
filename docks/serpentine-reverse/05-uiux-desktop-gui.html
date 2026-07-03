@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 5: UI/UX — DearPyGui Desktop GUI</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .screen { border:1px solid #30363d; border-radius:6px; padding:1rem; margin:1rem 0; }
+  .screen h3 { margin:0 0 .5rem 0; color:#7ee787; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 5/14</span>
+<h1>🪟 UI/UX — Desktop GUI (Dear PyGui)</h1>
+<p>GUI доступен в режимах <strong>ARCHITECT</strong> и <strong>TEACHER</strong>. Управляется через GUIDebugSystem (TELEMETRY фаза). DPG: docking, 1600x900 viewport.</p>
+
+<h2>🖥️ Экраны (Windows)</h2>
+
+<div class="screen">
+<h3>Control Deck</h3>
+<p><code>windows/control_deck.py</code> — Панель управления: Play/Pause/Step, TPS slider, REC (dataset recording), Save/Load snapshot.</p>
+</div>
+
+<div class="screen">
+<h3>World Outliner</h3>
+<p><code>windows/outliner.py</code> — Список всех Entity с фильтром. Клик = выбор сущности. SelectionService управляет состоянием выбора.</p>
+</div>
+
+<div class="screen">
+<h3>Inspector</h3>
+<p><code>windows/inspector.py</code> — Инспектор выбранного объекта. Для ENTITY: показывает все компоненты с AutoUIBuilder (редактирование полей). Для NODE: показывает параметры BT-ноды.</p>
+</div>
+
+<div class="screen">
+<h3>Viewport</h3>
+<p><code>windows/viewport.py</code> — 3D viewport. Отображает рендер ModernGL через динамическую текстуру. Клик → VIEWPORT_CLICK → PossessionSystem (raycast → selection).</p>
+</div>
+
+<div class="screen">
+<h3>Behavior Tree Editor</h3>
+<p><code>graph/bt_editor.py</code> — Визуальный редактор BT. Панель нод (RegistryV2.get_nodes_by_category). Рендерит дерево с цветовой кодировкой статусов (SUCCESS=green, FAILURE=red, RUNNING=blue). Авто-раскладка.</p>
+</div>
+
+<div class="screen">
+<h3>Perception Pipeline Editor</h3>
+<p><code>graph/perception_editor.py</code> — Визуализация pipeline (Screen → Crop → Grayscale → Output). Статическая на текущий момент.</p>
+</div>
+
+<div class="screen">
+<h3>Global Swarm Roster</h3>
+<p><code>windows/roster.py</code> — Таблица агентов: ID, BT Status, FPS, CPU, HP, Stamina. Кнопка Focus → выбор.</p>
+</div>
+
+<div class="screen">
+<h3>Action Timeline</h3>
+<p><code>windows/timeline.py</code> — Визуализация истории действий (timeline за 10 секунд). Цветовая кодировка: move=синий, click=красный, key=зелёный.</p>
+</div>
+
+<div class="screen">
+<h3>Imitation Learning Monitor</h3>
+<p><code>windows/imitation.py</code> — Сравнение Human vs AI действий. График loss. Shadow queue для AI-предсказаний.</p>
+</div>
+
+<h2>🔁 User Flows</h2>
+<ol>
+<li><strong>Entity Selection:</strong> Outliner → клик → SelectionService → Inspector (auto UI)</li>
+<li><strong>Viewport Interaction:</strong> Viewport → клик → event bus → PossessionSystem → raycast → entity possession</li>
+<li><strong>Engine Control:</strong> Control Deck → Play/Pause/Step → event bus → Engine</li>
+<li><strong>BT Editing:</strong> Select entity → BT Editor отображает дерево → интерактивное редактирование</li>
+</ol>
+
+<h2>🎨 UX Patterns</h2>
+<ul>
+<li><strong>Auto UI Generation:</strong> AutoUIBuilder → DPG виджеты из Pydantic полей</li>
+<li><strong>Event-driven GUI:</strong> Все GUI-компоненты общаются через EventBus</li>
+<li><strong>Selection-driven:</strong> Глобальное состояние выбора влияет на Inspector, BT Editor, Timeline</li>
+<li><strong>Docking:</strong> DPG docking-space для перетаскивания окон</li>
+</ul>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 9 окон + 2 графовых редактора</li>
+<li>✅ User flows определены (4 сценария)</li>
+<li>✅ UX patterns выделены (4 паттерна)</li>
+<li>✅ Cross-links: <a href="10-architecture.html">→ Шаг 10</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 11: Project Critique [WEB]</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .crit { border:1px solid #f85149; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+  .oq { border:1px solid #d29922; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+  .bs { border:1px solid #3fb950; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 11/14</span>
+<h1>🔬 Project Critique [WEB]</h1>
+
+<h2>❓ Open Questions</h2>
+
+<div class="oq">
+<h3>1. Почему Playwright в зависимостях, но не используется?</h3>
+<p><strong>Гипотеза:</strong> Планировалась веб-автоматизация для SerpAuto (SERP), но проект переориентировался на игровой движок.</p>
+</div>
+
+<div class="oq">
+<h3>2. Registry и RegistryV2 — почему два?</h3>
+<p><strong>Гипотеза:</strong> RegistryV2 — рефакторинг с добавлением поддержки window registry. Registry не удалён для обратной совместимости. Надо мержить.</p>
+</div>
+
+<div class="oq">
+<h3>3. SelectionService в двух местах — почему?</h3>
+<p><strong>Где:</strong> core/selection.py и systems/gui/selection.py — дубликаты с разными event names.</p>
+<p><strong>Гипотеза:</strong> Рефакторинг не завершён. GUI SelectionService использует GUIEventBus напрямую.</p>
+</div>
+
+<h2>👁️ Blind Spots</h2>
+
+<div class="bs">
+<h3>Security</h3>
+<ul>
+<li>PyAutoGUI FAILSAFE=true — хорошо, но может быть обойдён.</li>
+<li>Нет ограничений на действия AI (может кликать куда угодно).</li>
+<li>Snapshot JSON — нет валидации при загрузке (может привести к arbitrary object creation).</li>
+</ul>
+</div>
+
+<div class="bs">
+<h3>Performance</h3>
+<ul>
+<li>Outliner удаляет и пересоздаёт UI каждый frame — дорого для >50 entity.</li>
+<li>Query cache в World не сбрасывается по таймеру — только на изменение компонента.</li>
+<li>DatasetLoggerSystem открывает/закрывает файлы каждый фрейм.</li>
+</ul>
+</div>
+
+<div class="bs">
+<h3>Scalability</h3>
+<ul>
+<li>ActionExecutionSystem обрабатывает 1 intent/tick — не scale для многих агентов.</li>
+<li>GUI в том же процессе — блокирует engine frame при тяжёлых операциях.</li>
+<li>Нет worker threads для PyAutoGUI/OpenCV.</li>
+</ul>
+</div>
+
+<h2>⚖️ Architectural Criticism</h2>
+
+<div class="crit">
+<h3>1. Смешение GUI и Engine в одном event loop</h3>
+<p><strong>Проблема:</strong> DearPyGui и async engine работают в одном потоке. DPG.render_dearpygui_frame() вызывается в TELEMETRY phase, что может блокировать tick.</p>
+<p><strong>Альтернатива:</strong> Вынести GUI в отдельный процесс/поток, общаться через IPC.</p>
+</div>
+
+<div class="crit">
+<h3>2. Hardcoded perception pipeline</h3>
+<p><strong>Проблема:</strong> Список нод в коде, не из конфига. Нельзя переключить pipeline без редактирования кода.</p>
+<p><strong>Альтернатива:</strong> JSON/YAML конфиг + фабрика нод.</p>
+</div>
+
+<div class="crit">
+<h3>3. Нет сериализации Behavior Tree</h3>
+<p><strong>Проблема:</strong> BT создаётся в коде (snake_demo.py, gym_wrapper.py). Нельзя сохранить/загрузить дерево.</p>
+</div>
+
+<h2>[WEB] Investigation Paths</h2>
+<ul>
+<li>DearPyGui + async — best practices для интеграции</li>
+<li>ECS in Python — сравнение с esper, gaft</li>
+<li>BT сериализация — как Godot/Unreal хранят BT</li>
+</ul>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 3 open questions</li>
+<li>✅ 3 blind spots (security, perf, scalability)</li>
+<li>✅ 3 criticisms</li>
+<li>✅ Cross-links: <a href="12-knowledge-gained.html">→ Шаг 12</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

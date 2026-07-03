@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 3: API Surface — Serpentine Engine</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 3/14</span>
+<h1>🌐 API Surface — CLI & Modes</h1>
+
+<h2>⌨️ CLI (Typer)</h2>
+<p><code>main.py</code> — точка входа через Typer CLI.</p>
+
+<table>
+<tr><th>Команда</th><th>Аргументы</th><th>Описание</th></tr>
+<tr><td><code>run</code></td><td>mode (enum: ARCHITECT/PRODUCTION/TEACHER/GYMNASIUM), tps (int, default 60)</td><td>Запуск движка в указанном режиме</td></tr>
+</table>
+
+<p>Пример: <code>python main.py run --mode ARCHITECT --tps 60</code></p>
+
+<h2>🚀 Entry Points</h2>
+<ul>
+<li><code>main.py</code> — CLI через Typer</li>
+<li><code>snake_demo.py</code> — демо змейки через Gymnasium Env</li>
+<li><code>SerpentineGymEnv</code> — Gymnasium-совместимый Env для RL</li>
+</ul>
+
+<h2>🔌 Event Bus Interface</h2>
+<p>GUI ↔ Engine:</p>
+<ul>
+<li>ENGINE_PLAY, ENGINE_PAUSE, ENGINE_STEP</li>
+<li>ENGINE_SET_TPS, ENGINE_SAVE_SNAPSHOT, ENGINE_LOAD_SNAPSHOT</li>
+<li>VIEWPORT_CLICK → PossessionSystem</li>
+<li>ON_SELECTION_CHANGED → Inspector</li>
+<li>RENDER_COMPLETE → Viewport</li>
+</ul>
+
+<h2>🔮 FastAPI (упоминается)</h2>
+<p>FastAPI/uvicorn есть в зависимостях, но production-системы REST API не реализованы. Потенциально для headless bridge.</p>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ CLI описан (Typer, 1 команда)</li>
+<li>✅ Event Bus API задокументирован (8 событий)</li>
+<li>✅ FastAPI отмечен как потенциальный</li>
+<li>✅ Cross-links: <a href="05-uiux-desktop-gui.html">→ Шаг 5</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

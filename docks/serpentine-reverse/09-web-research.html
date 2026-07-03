@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 9: Web Research [WEB]</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .warn { color:#d29922; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 9/14</span>
+<h1>🌍 Web Research — Technology Ecosystem [WEB]</h1>
+<p class="warn">⚠️ WEB DATA: большая часть требует онлайн-верификации. Приведены оценки на основе имеющихся знаний.</p>
+
+<h2>Ключевые технологии</h2>
+
+<table>
+<tr><th>Технология</th><th>Версия в проекте</th><th>Назначение</th><th>Альтернативы</th></tr>
+<tr><td>Pydantic</td><td>2.12.5</td><td>Модели данных, валидация</td><td>attrs, msgspec, dataclasses</td></tr>
+<tr><td>DearPyGui</td><td>1.10+</td><td>Desktop GUI</td><td>PyQt6, Tkinter, wxPython, Flet</td></tr>
+<tr><td>ModernGL</td><td>5.8+</td><td>OpenGL рендеринг</td><td>Pygame + OpenGL, Pyglet, Panda3D</td></tr>
+<tr><td>Gymnasium</td><td>—</td><td>RL среды (через pip)</td><td>PettingZoo, Dopamine, Stable-Baselines3</td></tr>
+<tr><td>OpenCV</td><td>4.8+</td><td>Компьютерное зрение</td><td>Pillow, scikit-image, Kornia, Albumentations</td></tr>
+<tr><td>PyAutoGUI</td><td>0.9.54</td><td>Управление мышью/клавой</td><td>pynput, keyboard, mouse, pywinauto (Win)</td></tr>
+<tr><td>mss</td><td>9.0+</td><td>Скриншоты</td><td>PIL.ImageGrab, pyautogui.screenshot, DXcam</td></tr>
+<tr><td>Loguru</td><td>—</td><td>Логирование</td><td>structlog, python-json-logger, logbook</td></tr>
+<tr><td>Typer</td><td>—</td><td>CLI</td><td>click, argparse, fire</td></tr>
+<tr><td>httpx</td><td>0.28.1</td><td>HTTP клиент</td><td>requests, aiohttp, urllib3</td></tr>
+<tr><td>Ultralytics</td><td>8.0+</td><td>YOLO detection</td><td>MMDetection, Detectron2, YOLOv8 (native)</td></tr>
+<tr><td>Playwright</td><td>1.40+</td><td>Браузер автоматизация</td><td>Selenium, Puppeteer, Playwright (Python)</td></tr>
+</table>
+
+<h2>🔄 Ключевые решения и альтернативы</h2>
+
+<h3>DearPyGui vs PyQt6</h3>
+<p><strong>Выбран: DearPyGui</strong> — лёгкий, GPU-ускоренный, современный API, docking из коробки. Минус: меньше комьюнити, чем PyQt.</p>
+
+<h3>ModernGL vs Pyglet/Pygame</h3>
+<p><strong>Выбран: ModernGL</strong> — минималистичный wrapper над OpenGL, быстрый, headless-capable. Минус: мало примеров, нужно знать OpenGL.</p>
+
+<h3>ECS vs OOP</h3>
+<p><strong>Выбран: ECS</strong> — композиция вместо наследования, data-oriented, кэшируемые запросы. Типичный выбор для game dev.</p>
+
+<h2>📈 Состояние экосистемы (оценки)</h2>
+<ul>
+<li><strong>DearPyGui:</strong> Активен (GitHub ~12k stars). Последний релиз 2024.</li>
+<li><strong>ModernGL:</strong> Активен (~2k stars). Стабилен.</li>
+<li><strong>Gymnasium:</strong> Очень активен (~7k stars). Стандарт RL сред.</li>
+<li><strong>Ultralytics:</strong> Очень активен (~30k stars). Лидер YOLO.</li>
+</ul>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 12 технологий в таблице сравнения</li>
+<li>✅ Ключевые решения обоснованы</li>
+<li>⚠️ Данные без веб-поиска — [WEB DATA MISSING] для точных версий</li>
+<li>✅ Cross-links: <a href="10-architecture.html">→ Шаг 10</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

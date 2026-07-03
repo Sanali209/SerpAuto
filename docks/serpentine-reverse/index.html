@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Serpentine Engine — Reverse Engineering Map (Pass 2 Complete)</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:900px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; padding-bottom:.5rem; }
+  .status { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; }
+  .completed { background:#064e3b; color:#6ee7b7; }
+  .skip { background:#1f2937; color:#6b7280; }
+  a { color:#58a6ff; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  th { color:#8b949e; }
+  .meta { color:#8b949e; font-size:.9rem; }
+  .summary { background:#0d2818; border:1px solid #3fb950; border-radius:6px; padding:1rem; margin:1rem 0; }
+  .new { background:#0d2818; color:#7ee787; display:inline-block; padding:0 6px; border-radius:3px; font-size:.8rem; }
+</style>
+</head>
+<body>
+<h1>🐍 Serpentine Engine — Reverse Engineering Map</h1>
+<p class="meta">Project: SerpAuto (Serpentine Engine) | Completed: 2026-05-26 | Pass: 1 + 2 (Two-Pass Complete)</p>
+
+<div class="summary">
+<h3>📊 Итоговый Summary</h3>
+<table>
+<tr><td>Всего Python файлов</td><td>77</td></tr>
+<tr><td>Строк кода</td><td>~6 775 + ~1 200 тестов</td></tr>
+<tr><td>Тестов</td><td>12 файлов, покрытие: ECS, BT, Snake, Swarm, Perception, Scene, Raycast, Persistence, Modes, GUI, Simulation</td></tr>
+<tr><td>Документация (файлов)</td><td>~31</td></tr>
+<tr><td>Зависимостей</td><td>16 библиотек (3 не используются: Playwright, YOLO/ONNX, FastAPI)</td></tr>
+<tr><td>Режимов работы</td><td>4 (Architect / Production / Gymnasium / Teacher)</td></tr>
+<tr><td>ECS Фаз</td><td>8 (Input → Mail → Perception → Physics → Cognition → Execution → Reward → Telemetry)</td></tr>
+<tr><td>Desktop окон</td><td>9</td></tr>
+<tr><td>Сценарии (Scene)</td><td>SceneManager с load/save/validate + system config override</td></tr>
+</table>
+
+<h3>🏆 Топ находок</h3>
+<ol>
+<li><strong>ECS с Pydantic:</strong> data validation + JSON snapshot + auto UI — треугольник продуктивности</li>
+<li><strong>Scene как Snapshot:</strong> Scene = JSON (entities + components) + system config overrides (priority, tick_rate)</li>
+<li><strong>Dual Queue IL:</strong> action_queue + shadow_queue для Human-AI сравнения в реальном времени</li>
+<li><strong>Mode Strategy:</strong> 4 режима через Registry-фильтрацию (декор регистрация → метаданные → стратегия)</li>
+<li><strong>BT Editor с live-статусами:</strong> SUCCESS=green, FAILURE=red, RUNNING=blue — визуальная отладка AI</li>
+<li><strong>Auto UI Builder:</strong> Pydantic model → DPG widgets — рекурсивно, с Enum/BaseModel/list/dict поддержкой</li>
+<li><strong>Mock DPG Proxy:</strong> conftest мокает DearPyGui (включая context managers) для тестов GUI-логики</li>
+<li><strong>Perf тесты:</strong> 1000 entities scene loading < 500ms, 10k entities cached query < 1ms</li>
+</ol>
+
+<h3>⚠️ Ключевые проблемы (обновлено Pass 2)</h3>
+<ul>
+<li>❌ <strong>Дубли SelectionService + Registry</strong> — не мержены, core/selection vs gui/selection</li>
+<li>❌ <strong>Perception pipeline hardcoded</strong> — не из конфига, Crop + Grayscale только</li>
+<li>❌ <strong>Async + Sync смешение</strong> — engine async, PyAutoGUI/Tesseract sync → блокировки</li>
+<li>❌ <strong>Scene не интегрирована в engine loop</strong> — SceneManager существует, но не связан с Engine.run()</li>
+<li>❌ <strong>GUI пересоздаёт UI каждый frame</strong> — Outliner и Roster — O(n) кадр</li>
+<li>❌ <strong>FastAPI, YOLO, Playwright не используются</strong> — 3 библиотеки в requirements без кода</li>
+<li>❌ <strong>CONTINUOUS_LEARNING режим — enum-заглушка</strong></li>
+<li>⚠️ <strong>Matrix math в RenderSystem</strong> — 2D rotation, Z=0, потенциально не для 3D</li>
+</ul>
+</div>
+
+<h2>Артефакты — Pass 1 + 2 Complete</h2>
+<table>
+<tr><th>#</th><th>Артефакт</th><th>Статус</th><th>Pass 2 изменения</th></tr>
+<tr><td>0</td><td><a href="index.html">index.html</a></td><td><span class="status completed">✅ Final</span></td><td>Обновлённый summary</td></tr>
+<tr><td>1</td><td><a href="01-surface-scan.html">01-surface-scan.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>2</td><td><a href="02-entity-model.html">02-entity-model.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>3</td><td><a href="03-api-surface.html">03-api-surface.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>4</td><td><a href="04-frontend-flow.html">04-frontend-flow.html</a></td><td><span class="status skip">⏭️</span></td><td>—</td></tr>
+<tr><td>5</td><td><a href="05-uiux-desktop-gui.html">05-uiux-desktop-gui.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>6</td><td><a href="06-data-pipeline.html">06-data-pipeline.html</a></td><td><span class="status completed">✅</span></td><td><span class="new">Scene pipeline, тесты pipeline</span></td></tr>
+<tr><td>7</td><td><a href="07-feature-analysis.html">07-feature-analysis.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>8</td><td><a href="08-documentation-audit.html">08-documentation-audit.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>9</td><td><a href="09-web-research.html">09-web-research.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>10</td><td><a href="10-architecture.html">10-architecture.html</a></td><td><span class="status completed">✅</span></td><td><span class="new">Scene Layer, 12 тест-файлов, Mock DPG Proxy</span></td></tr>
+<tr><td>11</td><td><a href="11-project-critique.html">11-project-critique.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>12</td><td><a href="12-knowledge-gained.html">12-knowledge-gained.html</a></td><td><span class="status completed">✅</span></td><td>—</td></tr>
+<tr><td>13</td><td><a href="13-swot-debt-roadmap.html">13-swot-debt-roadmap.html</a></td><td><span class="status completed">✅</span></td><td>Scene не интегрирована добавлена в debt</td></tr>
+</table>
+
+<h2>Структура выходной папки</h2>
+<pre>
+docks/serpentine-reverse/
+├── index.html                           ← Финальная карта
+├── 01-13 *.html                         ← 13 артефактов
+└── assets/
+</pre>
+<p class="meta">Completed: 2026-05-26 | Two-Pass Execution: 14 шагов × 2 прохода | ~30 файлов прочитано</p>
+</body>
+</html>

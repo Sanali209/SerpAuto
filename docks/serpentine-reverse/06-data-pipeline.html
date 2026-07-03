@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 6: Data Pipeline — Serpentine Engine (Pass 2)</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .stage { border:1px solid #30363d; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+  .new { background:#0d2818; color:#7ee787; display:inline-block; padding:0 6px; border-radius:3px; font-size:.8rem; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 6/14 — Pass 2</span>
+<h1>🔀 Data Pipeline — Serpentine Engine</h1>
+
+<h2>📦 Scene Pipeline (Pass 2 discovery)</h2>
+<p><span class="new">NEW</span> <strong>SceneManager</strong> (<code>core/scene/</code>) — полноценная система сохранения/загрузки сцен:</p>
+<ul>
+<li><strong>SceneData</strong> (Pydantic) — metadata + systems + entities + global_config</li>
+<li><strong>SceneSaver</strong> — сериализует World snapshot + Registry system metadata в JSON</li>
+<li><strong>SceneLoader</strong> — загружает JSON → Pydantic валидация → world.restore_snapshot() + Registry.reset_system_metadata() + system config overrides</li>
+<li><strong>SceneManager</strong> — оркестратор с load_scene / save_scene / transition_to_scene</li>
+<li><strong>SystemConfig</strong> — позволяет переопределять priority/tick_rate систем в сцене</li>
+</ul>
+
+<h2>Pipeline Flow (updated)</h2>
+<pre>
+Scene (JSON file)
+  │
+  ▼
+SceneLoader → Pydantic validate → World.restore_snapshot()
+  │                                   │
+  ├─ Registry.reset_system_metadata() ├─ Entity restore (by UUID)
+  └─ System config overrides          └─ Component restore (by Registry lookup)
+  │
+  ▼
+Sensory Input (mss / InternalState)
+  │
+  ▼
+PerceptionPipelineSystem (linear)
+  └─ CropNode → GrayscaleNode
+  │
+  ▼
+AI_BrainSystem (BT tick per BrainComponent)
+  │
+  ▼
+ActionExecutionSystem (PyAutoGUI)
+  │
+  ▼
+Reward → Telemetry (GUI + Render + DatasetLogger)
+</pre>
+
+<h2>🧪 Тесты Pipeline (Pass 2)</h2>
+<p><span class="new">NEW</span> 12 тестовых файлов (~1200 строк):</p>
+<ul>
+<li><strong>test_persistence.py:</strong> Snapshot/restore roundtrip, Engine pause/play/step, GUIEventBus integration</li>
+<li><strong>test_scene_loading.py:</strong> Save & load scene с валидацией, performance 1000 entities < 500ms</li>
+<li><strong>test_perception_cv.py:</strong> Crop, Grayscale, DOM parser, GridMapper, Pipeline execution, Sensory input, Action execution</li>
+<li><strong>test_snake_sim.py:</strong> Reset, movement, food eating, wall collision — полный цикл</li>
+<li><strong>test_simulation.py:</strong> Reward, HumanInput, DatasetLogger (file handle reuse), ActionExecution</li>
+<li><strong>test_swarm.py:</strong> Point-to-point, broadcast, TTL expiry, BT nodes (SendMessage, ListenForEvent)</li>
+</ul>
+
+<h2>✅ Quality Gate (Pass 2 update)</h2>
+<ul>
+<li>✅ Обнаружена и задокументирована scene pipeline</li>
+<li>✅ Тесты pipeline — 6 тестовых файлов с интеграционными тестами</li>
+<li>✅ Scene система функциональна, но не интегрирована в engine loop</li>
+<li>✅ Cross-links: <a href="10-architecture.html">→ Шаг 10</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

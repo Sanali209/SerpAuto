@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 8: Documentation Audit [WEB]</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .ok { color:#3fb950; } .warn { color:#d29922; } .no { color:#f85149; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 8/14</span>
+<h1>📝 Documentation Audit [WEB]</h1>
+
+<h2>📚 Documentation Inventory</h2>
+<table>
+<tr><th>Группа</th><th>Кол-во</th><th>Качество</th></tr>
+<tr><td>des_docs/ (архитектура)</td><td>~25 файлов</td><td class="ok">✅ Высокое — детальные ADR, диаграммы</td></tr>
+<tr><td>docs/ (Diátaxis)</td><td>~6 файлов</td><td class="ok">✅ Хорошая структура (tutorials/how-to/reference/explanation)</td></tr>
+<tr><td>CONTRIBUTING.md</td><td>1</td><td class="ok">✅ Понятные правила</td></tr>
+<tr><td>README.md</td><td>0</td><td class="no">❌ Отсутствует в корне</td></tr>
+<tr><td>Docstrings в коде</td><td>Много</td><td class="ok">✅ Хорошие docstrings у компонентов, систем</td></tr>
+<tr><td>Type Hints</td><td>~90%</td><td class="ok">✅ Строгая типизация везде</td></tr>
+</table>
+
+<h2>📖 Ключевая документация</h2>
+<ul>
+<li><strong>ARCHITECTURE.md</strong> — общий обзор архитектуры</li>
+<li><strong>DATA_FLOW.md</strong> — потоки данных</li>
+<li><strong>engine_overview.md</strong> — обзор движка</li>
+<li><strong>tech_stack.md</strong> — технологический стек</li>
+<li><strong>roadmap.md</strong> — план развития</li>
+<li><strong>COMPONENT_REFERENCE.md</strong> — справочник компонентов</li>
+<li><strong>tutorials/</strong> — create-snake-ecs, run-architect</li>
+<li><strong>how-to/</strong> — add-component, add-system, write-behavior-tree</li>
+<li><strong>reference/</strong> — ecs-api, mind-api</li>
+<li><strong>explanation/</strong> — architecture-overview</li>
+</ul>
+
+<h2>🔍 Code-Doc Alignment</h2>
+<table>
+<tr><th>Компонент</th><th>Doc?</th><th>Комментарий</th></tr>
+<tr><td>ECS Core</td><td class="ok">✅</td><td>Хорошо документировано в des_docs</td></tr>
+<tr><td>Perception Pipeline</td><td class="warn">⚠️</td><td>DATA_FLOW.md описывает, но код hardcoded</td></tr>
+<tr><td>Scene система</td><td class="no">❌</td><td>Не документирована, не интегрирована</td></tr>
+<tr><td>RegistryV2</td><td class="warn">⚠️</td><td>Упомянут, но нет отдельной документации</td></tr>
+<tr><td>LLM Integration</td><td class="warn">⚠️</td><td>Есть API docs, нет туториала</td></tr>
+</table>
+
+<h2>[WEB] Стандарты документирования</h2>
+<p><em>[WEB DATA MISSING] — рекомендуется проверить Diátaxis framework, Google Developer Documentation Style Guide.</em></p>
+<p>Проект использует Diátaxis (что похвально). des_docs/ создавался отдельным workflow (вероятно, через агента).</p>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ ~31 файл документации</li>
+<li>✅ Хорошее покрытие архитектуры</li>
+<li>⚠️ README отсутствует</li>
+<li>✅ Cross-links: <a href="07-feature-analysis.html">← Шаг 7</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

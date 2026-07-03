@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 10: Architecture — Serpentine Engine (Pass 2 Update)</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .pat { border:1px solid #30363d; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+  .new { background:#0d2818; color:#7ee787; display:inline-block; padding:0 6px; border-radius:3px; font-size:.8rem; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 10/14 — Pass 2</span>
+<h1>🏛️ Architecture (Pass 2 Update)</h1>
+
+<h2>📐 Layer Diagram (updated)</h2>
+<pre>
+┌─────────────────────────────────────────────────┐
+│                   GUI Layer                      │
+│  ControlDeck │ Outliner │ Inspector │ Viewport   │
+│  BT Editor │ Perc Editor │ Roster │ TL │ Im     │
+├─────────────────────────────────────────────────┤
+│                Engine Layer                      │
+│  SerpentineEngine │ ModeStrategy (4)             │
+│  EventBus │ Registry V1+V2 │ SelectionService x2 │
+├─────────────────────────────────────────────────┤
+│                ECS Layer                         │
+│  World │ Entity │ BaseComponent                  │
+│  Query Cache │ Snapshot (JSON Pydantic)          │
+├─────────────────────────────────────────────────┤
+│             Scene Layer <span class="new">NEW</span>                      │
+│  SceneManager │ SceneLoader │ SceneSaver          │
+│  SceneData │ SceneMetadata │ SystemConfig         │
+│  (JSON file ↔ Pydantic ↔ World snapshot)         │
+├─────────────────────────────────────────────────┤
+│             Systems + Components                 │
+│  8 phases │ 15+ components │ 12+ systems         │
+├─────────────────────────────────────────────────┤
+│             External Adapters                    │
+│  PyAutoGUI │ mss │ OpenCV │ ModernGL │ Tesseract │
+│  DearPyGui │ Gymnasium │ httpx                   │
+└─────────────────────────────────────────────────┘
+</pre>
+
+<h2>🧩 Новые паттерны (Pass 2)</h2>
+
+<div class="pat">
+<h4>Scene as Snapshot + Registry Override</h4>
+<p><span class="new">NEW</span> <strong>Где:</strong> <code>core/scene/</code></p>
+<p><strong>Что:</strong> Scene = JSON файл, содержащий полный snapshot мира (entities + components) + system config overrides (priority, tick_rate). SceneLoader парсит Pydantic → world.restore_snapshot() → Registry.reset_system_metadata() → system config override.</p>
+</div>
+
+<div class="pat">
+<h4>Proxy Pattern — Mock DPG в тестах</h4>
+<p><span class="new">NEW</span> <strong>Где:</strong> <code>tests/conftest.py</code></p>
+<p><strong>Что:</strong> DearPyGui полностью мокируется через MagicMock, включая context managers (window, node_editor, node, theme, group, child_window). Позволяет тестировать GUI-логику без дисплея.</p>
+</div>
+
+<h2>🧪 Test Architecture</h2>
+<table>
+<tr><th>Файл</th><th>Что тестирует</th><th>Зависимости</th></tr>
+<tr><td>test_core_ecs.py</td><td>World (entity/component/queries), Engine loop, Registry</td><td>pytest, asyncio</td></tr>
+<tr><td>test_mind_bt.py</td><td>Behavior Tree: Sequence, Selector, Inverter, Wait, Blackboard</td><td>unittest.IsolatedAsyncioTestCase</td></tr>
+<tr><td>test_modes.py</td><td>Архитектор vs Production mode (GUI exclusion)</td><td>unittest, mocked DPG</td></tr>
+<tr><td>test_registry_v2.py</td><td>RegistryV2 registration, SelectionService events</td><td>pytest</td></tr>
+<tr><td>test_snake_sim.py</td><td>Gym env: reset, move, eat food, wall collision</td><td>numpy, gymnasium</td></tr>
+<tr><td>test_swarm.py</td><td>Swarm messaging, TTL, BT nodes (Send/Listen)</td><td>unittest.IsolatedAsyncioTestCase</td></tr>
+<tr><td>test_simulation.py</td><td>Reward, HumanInput, DatasetLogger, ActionExecution</td><td>unittest.IsolatedAsyncioTestCase, mock</td></tr>
+<tr><td>test_gui_logic.py</td><td>SelectionService, window registration, Outliner logic</td><td>unittest, mocked DPG</td></tr>
+<tr><td>test_perception_cv.py</td><td>CV nodes, pipeline execution, sensory input</td><td>pytest, mocked cv2/numpy/mss/pyautogui</td></tr>
+<tr><td>test_scene_loading.py</td><td>Scene save/load, registry bitmasks, perf 1000 ents</td><td>unittest</td></tr>
+<tr><td>test_raycast.py</td><td>Ray-box, ray-sphere intersection</td><td>numpy</td></tr>
+<tr><td>test_persistence.py</td><td>Snapshot/restore, engine step, event bus, file IO</td><td>pytest, tmp_path</td></tr>
+</table>
+
+<h2>✅ Quality Gate (Pass 2)</h2>
+<ul>
+<li>✅ Scene Layer добавлен в архитектуру</li>
+<li>✅ 12 тестовых файлов каталогизированы</li>
+<li>✅ 2 новых паттерна (Scene как Snapshot, Mock DPG Proxy)</li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

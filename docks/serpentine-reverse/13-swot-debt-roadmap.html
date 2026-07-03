@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 13: SWOT + Tech Debt + Roadmap</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .swot-s { background:#0d2818; border:1px solid #3fb950; border-radius:6px; padding:.8rem; }
+  .swot-w { background:#281010; border:1px solid #f85149; border-radius:6px; padding:.8rem; }
+  .swot-o { background:#0d1f28; border:1px solid #58a6ff; border-radius:6px; padding:.8rem; }
+  .swot-t { background:#281d0d; border:1px solid #d29922; border-radius:6px; padding:.8rem; }
+  .crit { color:#f85149; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 13/14</span>
+<h1>📊 SWOT + Tech Debt + Roadmap</h1>
+
+<h2>SWOT Analysis</h2>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+
+<div class="swot-s">
+<h3>✅ Strengths</h3>
+<ul>
+<li>Чистая ECS-архитектура</li>
+<li>Pydantic-first data layer с авто-UI</li>
+<li>Strategy Pattern для режимов</li>
+<li>Визуальный BT Editor</li>
+<li>Gymnasium-совместимость для RL</li>
+<li>Богатый perception pipeline (CV, OCR, скриншоты)</li>
+<li>Хорошая документация (des_docs + Diátaxis)</li>
+</ul>
+</div>
+
+<div class="swot-w">
+<h3>❌ Weaknesses</h3>
+<ul>
+<li>Дублирование кода (SelectionService, RegistryV1/V2)</li>
+<li>Hardcoded perception pipeline</li>
+<li>Смешение async + sync (блокировки event loop)</li>
+<li>Нет README.md в корне</li>
+<li>Perception pipeline editor — статический, не редактируемый</li>
+<li>Scene система не интегрирована</li>
+</ul>
+</div>
+
+<div class="swot-o">
+<h3>🌍 Opportunities</h3>
+<ul>
+<li>Интеграция YOLO/ONNX для real-time object detection</li>
+<li>FastAPI REST bridge для production</li>
+<li>Playwright для веб-автоматизации (если вернуться к SerpAuto)</li>
+<li>Визуальное редактирование perception pipeline</li>
+<li>Сериализация/загрузка Behavior Trees</li>
+<li>Multi-agent RL через существующий swarm модуль</li>
+</ul>
+</div>
+
+<div class="swot-t">
+<h3>⚠️ Threats</h3>
+<ul>
+<li>DearPyGui может быть заброшен (меньше комьюнити, чем PyQt)</li>
+<li>Async + sync смешение ведёт к трудноотловимым багам</li>
+<li>Нет CI/CD, нет автоматического тестирования GUI</li>
+<li>Проект может быть "over-engineered" для демо-версии</li>
+</ul>
+</div>
+
+</div>
+
+<h2>🧹 Tech Debt Inventory</h2>
+<table>
+<tr><th>Долг</th><th>Severity</th><th>Где</th></tr>
+<tr><td>Два SelectionService (core/ vs gui/)</td><td>Medium</td><td>core/selection.py, systems/gui/selection.py</td></tr>
+<tr><td>Registry и RegistryV2 не мержены</td><td>Medium</td><td>core/registry.py, core/registry_v2.py</td></tr>
+<tr><td>GUI пересоздаёт UI каждый frame</td><td>High</td><td>outliner.py, roster.py</td></tr>
+<tr><td>Perception pipeline hardcoded</td><td>High</td><td>perception/pipeline.py</td></tr>
+<tr><td>Нет README.md</td><td>Low</td><td>Корень</td></tr>
+<tr><td>DatasetLogger открывает/закрывает файлы каждый тик</td><td>Medium</td><td>systems/data.py</td></tr>
+<tr><td>Matrix math в рендере может быть некорректен</td><td>Medium</td><td>render/system.py (2D rotation с Z=0)</td></tr>
+<tr><td>CONTINUOUS_LEARNING режим не реализован</td><td>Low</td><td>core/registry.py</td></tr>
+</table>
+
+<h2>🛤️ Рекомендации</h2>
+
+<table>
+<tr><th>Приоритет</th><th>Что сделать</th></tr>
+<tr><td>Critical</td><td>Убрать дубли SelectionService, мержить Registry и RegistryV2</td></tr>
+<tr><td>Critical</td><td>Сделать perception pipeline конфигурируемым (JSON/YAML)</td></tr>
+<tr><td>High</td><td>Оптимизировать GUI (не пересоздавать UI каждый frame)</td></tr>
+<tr><td>High</td><td>Добавить README.md с кратким описанием</td></tr>
+<tr><td>Medium</td><td>Интегрировать YOLO/ONNX в perception pipeline</td></tr>
+<tr><td>Medium</td><td>Сериализация/десериализация Behavior Trees</td></tr>
+<tr><td>Low</td><td>FastAPI REST bridge для production mode</td></tr>
+<tr><td>Low</td><td>Playwright браузерная автоматизация</td></tr>
+</table>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ SWOT — 4 блока по 4+ пункта</li>
+<li>✅ Tech debt — 8 пунктов</li>
+<li>✅ Рекомендации — 8 задач (3 Critical)</li>
+<li>✅ Cross-links: <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 12: Knowledge Gained</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .kitem { border:1px solid #30363d; border-radius:6px; padding:.8rem; margin:.8rem 0; }
+  .kitem h4 { color:#7ee787; margin:0 0 .5rem 0; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 12/14</span>
+<h1>🧠 Knowledge Gained — Lessons & Patterns</h1>
+
+<div class="kitem">
+<h4>📐 ECS с Pydantic компонентами</h4>
+<p><strong>Категория:</strong> pattern</p>
+<p><strong>Суть:</strong> Компоненты ECS как Pydantic модели — data validation + serialization (snapshot JSON) + auto UI из коробки (AutoUIBuilder).</p>
+<p><strong>Применимость:</strong> Любой ECS-проект на Python. Элегантное решение для data layer.</p>
+</div>
+
+<div class="kitem">
+<h4>🔄 Mode Strategy через Registry</h4>
+<p><strong>Категория:</strong> pattern</p>
+<p><strong>Суть:</strong> Системы регистрируются с метаданными (фаза, режимы, приоритет). ModeStrategy просто фильтрует Registry. Добавление новой системы = 1 декоратор.</p>
+<p><strong>Применимость:</strong> Приложения с несколькими режимами работы (dev/prod/test/teacher).</p>
+</div>
+
+<div class="kitem">
+<h4>🚀 Double Queue для Imitation Learning</h4>
+<p><strong>Категория:</strong> pattern</p>
+<p><strong>Суть:</strong> action_queue (для выполнения) + shadow_queue (для AI-предсказаний). ImitationLearningMonitor сравнивает обе очереди.</p>
+<p><strong>Применимость:</strong> IL/RL системы с Human-in-the-loop.</p>
+</div>
+
+<div class="kitem">
+<h4>⚠️ DearPyGui + asyncio — потенциальный anti-pattern</h4>
+<p><strong>Категория:</strong> anti-pattern</p>
+<p><strong>Суть:</strong> Синхронный GUI в async event loop. DPG.render_dearpygui_frame() вызывается как system update, блокируя event loop.</p>
+<p><strong>Альтернатива:</strong> QThread (PyQt) или отдельный процесс.</p>
+</div>
+
+<div class="kitem">
+<h4>🔍 Fixed Timestep Accumulator</h4>
+<p><strong>Категория:</strong> lesson</p>
+<p><strong>Суть:</strong> Системы с tick_rate имеют аккумулятор dt. Tick выполняется пока accumulator >= target_dt, предотвращая spiral of death.</p>
+<p><strong>Применимость:</strong> Game engines, физические симуляции.</p>
+</div>
+
+<div class="kitem">
+<h4>🛠️ AutoUIBuilder — runtime UI из data models</h4>
+<p><strong>Категория:</strong> tool</p>
+<p><strong>Суть:</strong> AutoUIBuilder рекурсивно строит DPG-виджеты из Pydantic полей (str→input, int→drag, bool→checkbox, Enum→combo, BaseModel→tree_node).</p>
+<p><strong>Применимость:</strong> Любой десктопный инструмент с runtime-редактированием данных (GUI для конфигов, отладчики ECS).</p>
+</div>
+
+<div class="kitem">
+<h4>🗃️ Query Cache в ECS</h4>
+<p><strong>Категория:</strong> lesson</p>
+<p><strong>Суть:</strong> World._query_cache кэширует результаты get_entities_with(*types). Инвалидация при add/remove компонента. Использует smallest-set-first оптимизацию.</p>
+<p><strong>Применимость:</strong> Любая ECS имплементация.</p>
+</div>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 7 knowledge items (4 patterns, 1 anti-pattern, 2 lessons, 1 tool)</li>
+<li>✅ Cross-links: <a href="13-swot-debt-roadmap.html">→ Шаг 13</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

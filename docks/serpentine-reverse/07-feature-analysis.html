@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Шаг 7: Feature Analysis [WEB]</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:system-ui,sans-serif; max-width:1000px; margin:auto; padding:2rem; }
+  h1 { background:linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip:text; }
+  h2 { color:#58a6ff; border-bottom:1px solid #30363d; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th,td { padding:.5rem; text-align:left; border-bottom:1px solid #30363d; }
+  code { background:#1f2937; padding:2px 6px; border-radius:3px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.8rem; background:#1f2937; color:#f0c674; }
+  .ok { color:#3fb950; } .warn { color:#d29922; } .no { color:#f85149; }
+</style>
+</head>
+<body>
+<span class="badge">Шаг 7/14</span>
+<h1>⭐ Feature Analysis [WEB]</h1>
+
+<h2>✅ Feature Status Matrix</h2>
+<table>
+<tr><th>Фича</th><th>Статус</th><th>Где реализовано</th></tr>
+<tr><td>ECS Core</td><td class="ok">✅</td><td>core/entity, component, world, registry</td></tr>
+<tr><td>Behaviour Tree AI</td><td class="ok">✅</td><td>mind/ (core, composites, decorators, actions)</td></tr>
+<tr><td>LLM Integration</td><td class="ok">✅</td><td>mind/llm.py (LLMInferenceNode + MockAdapter)</td></tr>
+<tr><td>CV Pipeline (OpenCV)</td><td class="ok">✅</td><td>perception/nodes.py (Crop, Gray, TemplateMatch, OCR)</td></tr>
+<tr><td>Screen Capture</td><td class="ok">✅</td><td>perception/ingestion.py (mss)</td></tr>
+<tr><td>PyAutoGUI Actions</td><td class="ok">✅</td><td>perception/actions.py (click, move, key)</td></tr>
+<tr><td>DearPyGui Desktop</td><td class="ok">✅</td><td>systems/gui/ (9 окон)</td></tr>
+<tr><td>Behavior Tree Visual Editor</td><td class="ok">✅</td><td>gui/graph/bt_editor.py</td></tr>
+<tr><td>Perception Pipeline Editor</td><td class="ok">✅</td><td>gui/graph/perception_editor.py (static)</td></tr>
+<tr><td>3D Rendering (ModernGL)</td><td class="ok">✅</td><td>systems/render/ (cube MVP rendering)</td></tr>
+<tr><td>Gymnasium RL Env</td><td class="ok">✅</td><td>core/gym_wrapper.py (Snake game)</td></tr>
+<tr><td>RL Reward System</td><td class="ok">✅</td><td>components/simulation.py, systems/data.py</td></tr>
+<tr><td>Snapshot Save/Load</td><td class="ok">✅</td><td>engine.py (JSON + Pydantic сериализация)</td></tr>
+<tr><td>Mode Strategy Pattern</td><td class="ok">✅</td><td>modes/ (4 режима)</td></tr>
+<tr><td>Swarm Messaging</td><td class="ok">✅</td><td>swarm.py, messages.py, swarm_nodes.py</td></tr>
+<tr><td>Imitation Learning Monitor</td><td class="ok">✅</td><td>gui/windows/imitation.py</td></tr>
+<tr><td>Auto UI Builder</td><td class="ok">✅</td><td>systems/auto_ui_builder.py</td></tr>
+<tr><td>Dataset Logging (JSONL)</td><td class="ok">✅</td><td>systems/data.py (DatasetLogger)</td></tr>
+<tr><td>Playwright Browser Automation</td><td class="warn">⚠️</td><td>Только в зависимостях, не используется</td></tr>
+<tr><td>YOLO/ONNX Vision AI</td><td class="warn">⚠️</td><td>Только в зависимостях, не используется</td></tr>
+<tr><td>FastAPI REST Bridge</td><td class="warn">⚠️</td><td>Только в зависимостях, не реализован</td></tr>
+<tr><td>Continuous Learning Mode</td><td class="no">❌</td><td>Только enum, не реализован</td></tr>
+<tr><td>Perception Pipeline Config</td><td class="no">❌</td><td>Hardcoded, не из конфига</td></tr>
+<tr><td>Scene Editor</td><td class="warn">⚠️</td><td>core/scene/ существует (loader, saver, validator) не используется</td></tr>
+</table>
+
+<h2>🔮 Gap Analysis</h2>
+<table>
+<tr><th>Пробел</th><th>Описание</th><th>Приоритет</th></tr>
+<tr><td>YOLO/ONNX не интегрированы</td><td>Библиотеки есть, но не задействованы в perception pipeline</td><td>Medium</td></tr>
+<tr><td>Playwright не используется</td><td>Браузерная автоматизация не подключена</td><td>Low</td></tr>
+<tr><td>FastAPI не реализован</td><td>Production mode без REST API</td><td>Medium</td></tr>
+<tr><td>Pipeline конфигурация hardcoded</td><td>PerceptionPipelineSystem.nodes — список в коде, не из JSON/YAML</td><td>High</td></tr>
+<tr><td>Scene система не интегрирована</td><td>scene/loader, saver, validator существуют но не вызываются</td><td>Low</td></tr>
+<tr><td>Нет unit-тестов на GUI</td><td>GUI-код не тестируется</td><td>Medium</td></tr>
+</table>
+
+<h2>[WEB] Сравнение с аналогами</h2>
+<p><em>[WEB DATA MISSING] — требуется поиск. Гипотезы:</em></p>
+<ul>
+<li><strong>Godot Engine</strong> — GDScript/C++, mature ECS + visual editor</li>
+<li><strong>Panda3D</strong> — Python game engine от Disney</li>
+<li><strong>PyBullet</strong> — физика + робототехника</li>
+<li><strong>PettingZoo</strong> — multi-agent RL среды для Python</li>
+</ul>
+
+<h2>✅ Quality Gate</h2>
+<ul>
+<li>✅ 24 фичи каталогизированы</li>
+<li>✅ Gap analysis: 6 пробелов</li>
+<li>✅ Cross-links: <a href="08-documentation-audit.html">→ Шаг 8</a></li>
+<li>✅ <a href="index.html">← index.html</a></li>
+</ul>
+</body>
+</html>

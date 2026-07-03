@@ -1,0 +1,165 @@
+{
+  "user_preferences": {
+    "interaction_style": "Direct, task-driven, and highly detailed. The user prefers structured execution without repeated question cycles.",
+    "technical_focus": "Python 3.12+ Game Loop/ECS (Entity Component System) Engine coupled with Behavior Tree AI controllers and custom Computer Vision perception layers. Core technologies include ModernGL + PyGLM + GLFW for 3D physics/HUD, OpenCV + PyTesseract + ONNX Runtime/YOLO for perception, PyAutoGUI + Playwright for OS/browser automation, and DearPyGui for GUI/HUD orchestration.",
+    "goal_orientation": "Developing and refining SerpAuto, a high-performance game-like automation and training engine supporting multiple mode strategies (Gymnasium, Architect, Production, Teacher) and reactive swarm steering."
+  },
+  "project_knowledge": {
+    "overview": "SerpAuto is an AI-driven, Game-Loop-based ECS Automation and Simulation Engine. It combines visual perception pipelines (OCR, YOLO object detection, template matching), behavior-tree-based cognitive systems, and OS-level automation inside a synchronized, multi-phase ticking game loop.",
+    "architecture": {
+      "main_principle": "Game Loop & Entity Component System (ECS) architecture. Updates are broken down into sequential phases (`SystemPhase`) executed under mode-specific strategies (`ModeStrategy`). The engine processes ticks at a target TPS (default 60) via non-blocking asynchronous sleep compensation.",
+      "system_phases": [
+        "INPUT: Reads hardware, window events, or virtual driver inputs.",
+        "MAIL_ROUTING: Internal message routing and system communication.",
+        "PERCEPTION: Executes Computer Vision, OCR, and AI detection filters (MSS, cv2, pytesseract, YOLO).",
+        "INTERNAL_PHYSICS: Calculates movements, swarm steering forces, and collision checks.",
+        "COGNITION: Executes Behavior Tree mind ticks via custom registry-backed nodes.",
+        "EXECUTION: Translates cognitive intents into actions, emulating inputs (PyAutoGUI, Playwright) or simulation updates.",
+        "REWARD: Computes fitness metrics or rewards for Gymnasium-based learning modes.",
+        "TELEMETRY: Broadcasts stats, frames, and state snapshots."
+      ],
+      "mode_strategies": {
+        "ARCHITECT": "Development mode featuring visual graph editors, manual system overrides, and inspectors.",
+        "PRODUCTION": "Optimized execution mode with minimal GUI overhead, maximizing throughput and automation reliability.",
+        "GYMNASIUM": "Reinforcement learning training mode exposing a gym-compatible interface for model training.",
+        "TEACHER": "Interactive mode allowing manual override of system actions for demonstration or demonstration recording."
+      },
+      "registry_and_ecs": "The central `Registry` acts as a decorator-driven mapping hub. Components are registered via `@Registry.register_component` (assigning unique bitmask indices for efficient ECS queries). Systems are registered via `@Registry.register_system` mapped to their phase and active modes. Behavior tree nodes are registered via `@Registry.register_node`.",
+      "gui_and_event_bus": "Asynchronous messaging decoupled via `GUIEventBus` supporting events such as ENGINE_PLAY, ENGINE_PAUSE, ENGINE_STEP, and snapshot serialization/deserialization. Interactive panels are dynamically assembled via `auto_ui_builder` which maps ECS entity components directly to DearPyGui widgets."
+    }
+  },
+  "design_knowledge": {
+    "protocols_and_abcs": {
+      "protocols": [],
+      "abcs": [
+        {"name": "System", "file": "serpentine/systems/base.py", "methods": "update (async)", "usage": "Base class for all ECS logic phases containing optional accumulator-based fixed-timestep ticking logic."},
+        {"name": "BaseComponent", "file": "serpentine/core/component.py", "usage": "Base representation of ECS components containing state without logic."},
+        {"name": "PerceptionNode", "file": "serpentine/perception/nodes.py", "methods": "process", "usage": "Base processing filter class inside the CV/perception pipeline."},
+        {"name": "ModeStrategy", "file": "serpentine/modes/__init__.py", "methods": "get_systems", "usage": "Interface representing system collection for specific execution modes."}
+      ]
+    },
+    "decorator_patterns": {
+      "custom_decorators": {
+        "register_component": {
+          "name": "register_component",
+          "file": "serpentine/core/registry.py",
+          "purpose": "Registers a component class and generates its bitmask for ECS filtering."
+        },
+        "register_system": {
+          "name": "register_system",
+          "file": "serpentine/core/registry.py",
+          "purpose": "Registers an ECS system class mapped to target phases, priorities, and execution modes."
+        },
+        "register_node": {
+          "name": "register_node",
+          "file": "serpentine/core/registry.py",
+          "purpose": "Registers a cognitive Behavior Tree node with category, icon, and description metadata."
+        }
+      },
+      "standard_decorators": {
+        "@abstractmethod": "Enforces override patterns on `System.update`, `PerceptionNode.process`, and BT nodes."
+      }
+    },
+    "async_patterns": {
+      "async_functions": "The main game loop (`run()`), ticking system (`_tick()`), and all ECS updates (`System.update()`) are asynchronously designed to allow lightweight cooperative multitasking during automated waiting periods.",
+      "tps_sleep_compensation": "Ensures that tick times are accurately regulated via `await asyncio.sleep(max(0, target_tick_time - elapsed))` to maintain stable, non-blocking TPS rates."
+    },
+    "descriptor_protocol": {
+      "usage": "Standard properties (`@property`) are used for lightweight component lookups and entity status querying."
+    },
+    "context_managers": {
+      "usage": "Standard context managers are used in tests for UI mocking and resource cleanups."
+    },
+    "metaclass_usage": {
+      "usage": "Standard type hierarchies are used; no custom metaclasses are implemented in the engine."
+    },
+    "pydantic_patterns": {
+      "usage": "SystemMetadata, NodeMetadata, and structural configuration models are modeled using Pydantic V2 to enforce runtime validation."
+    },
+    "import_patterns": {
+      "relative_imports": "Absolute imports are standard (`serpentine.core...`).",
+      "lazy_imports": "Heavy scientific and CV modules (cv2, pytesseract, numpy, dearpygui) include safety import-guards (`try...except ImportError`) or inside local helper hooks, enabling test isolation without physical GUI/display servers."
+    }
+  },
+  "app_domain_analysis": {
+    "engine_core": {
+      "domain": "ECS Engine & Synchronization. Manages entities, component storage lists, tick phases, and mode-based system resolution.",
+      "key_components": [
+        "SerpentineEngine (core/engine.py): Main event loop runner handling pause, play, single-stepping, and snapshot files.",
+        "World (core/world.py): ECS container managing entity instantiation, component bitmask arrays, and raw state snapshots.",
+        "Registry (core/registry.py): Central schema metadata container for systems, nodes, and components."
+      ]
+    },
+    "perception_pipeline": {
+      "domain": "Visual computer vision & detection pipeline. Processes screen capture observations into structured grids and template locations.",
+      "key_components": [
+        "PerceptionNode (perception/nodes.py): Pipeline filter classes including CropNode, GrayscaleNode, TemplateMatchNode, OCRNode, and InternalGridPerception.",
+        "Pipeline (perception/pipeline.py): Sequences multiple perception nodes to build a comprehensive environmental observation."
+      ]
+    },
+    "mind_bt": {
+      "domain": "Cognitive Behavior Tree engine. Translates observations into strategic actions using a custom decorator-wrapped node registry.",
+      "key_components": [
+        "Brain (mind/brain.py): Evaluates the active BT structure against the blackboard.",
+        "Composites (mind/composites.py): Selection, Sequence, and parallel nodes.",
+        "Actions (mind/actions.py): Execution leaves for UI clicking, steering, and model querying."
+      ]
+    },
+    "rendering_hud": {
+      "domain": "3D simulation rendering & HUD. Manages GPU buffers, context initialization, GLFW windows, and shader loops.",
+      "key_components": [
+        "RenderSystem (systems/render/system.py): Coordinates moderngl vertex buffers, camera transforms via PyGLM, and GLFW callbacks.",
+        "Raycast (systems/render/raycast.py): Executes fast bounding-box intersection calculations in 3D world coords."
+      ]
+    }
+  },
+  "testing_deep_analysis": {
+    "total_test_files": "14 test files in tests/ directory, fully evaluating ECS, BT, cv, raycast, and simulation components.",
+    "conftest_hierarchy": [
+      {"file": "tests/conftest.py", "purpose": "Mocks the `dearpygui` package and its core context managers on the standard `sys.modules` list to allow running GUI tests on headless CI runners."}
+    ],
+    "patterns": {
+      "mocking": "Extensive use of MagicMocks for dearpygui, allowing full builder validation without graphics devices.",
+      "isolated_assertion": "Checks system accumulator timing, ray-box intersections, and BT status transitions (SUCCESS/RUNNING/FAILURE)."
+    },
+    "gaps": [
+      "Hardware-dependent pyautogui automation flows are minimally covered by pure unit tests due to native OS integration barriers."
+    ]
+  },
+  "ci_cd_pipelines": {
+    "workflows": []
+  },
+  "database_migrations": {
+    "neo4j": "Not applicable.",
+    "sqlite": "Not applicable."
+  },
+  "architectural_decisions": [
+    {"id": "ADR-001", "title": "Game-Loop ECS Architecture", "decision": "Run automation flows inside a continuous async game loop divided into sequential phases instead of standard request-response structures.", "status": "Accepted"},
+    {"id": "ADR-002", "title": "Abstract Perception Nodes", "decision": "CV and AI processes must be framed as decoupled PerceptionNodes processing immutable Observations, enabling pipeline reusability.", "status": "Accepted"},
+    {"id": "ADR-003", "title": "Headless GUI Testing via Mocks", "decision": "Mock the entire dearpygui module inside pytest's configure hook to ensure CI runners remain fast and visual-free.", "status": "Accepted"}
+  ],
+  "error_handling_strategy": {
+    "exception_hierarchy": "System update execution is safe-guarded to prevent a crash in one phase from halting the whole engine loop. Errors are intercepted at the system tick boundary, logged via serpentine.log, while continuing loop processing."
+  },
+  "todo_fixme_hack_inventory": [
+    {
+      "id": "TD-0001",
+      "title": "Placeholder DOMParserNode",
+      "module": "perception",
+      "priority": "P2",
+      "status": "OPEN",
+      "evidence": "serpentine/perception/nodes.py:L151",
+      "description": "DOMParserNode is defined as a stub placeholder parsing fake data and needs a BeautifulSoup or Playwright integration."
+    }
+  ],
+  "white_spots": [
+    "Integrating reinforcement learning agents under GymnasiumMode with active PyTorch/Stable-Baselines3 pipelines."
+  ],
+  "open_questions": [
+    "Should PYGLM coordinates be strictly synchronized with pyautogui pixel space or should they undergo transformation matrices at the boundary?"
+  ],
+  "metadata": {
+    "last_updated": "2026-05-31T14:48:00+03:00",
+    "update_plan": "Update whenever ECS phases, Registry protocols, perception filters, or custom behavior tree composites are refactored."
+  }
+}
