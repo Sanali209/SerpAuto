@@ -1,6 +1,7 @@
 import asyncio
 import time
 import json
+import gzip
 import traceback
 from typing import List, Dict, Type, Any
 
@@ -10,12 +11,14 @@ from serpentine.systems.base import System
 from serpentine.utils.logging import configure_logging
 from serpentine.core.event_bus import GUIEventBus
 from serpentine.modes import ArchitectMode, ProductionMode, GymnasiumMode, TeacherMode, ModeStrategy
+from serpentine.modes.config_loader import ModeConfigLoader
 
 logger = configure_logging()
 
 class SerpentineEngine:
-    def __init__(self, mode: EngineMode = EngineMode.ARCHITECT, target_tps: int = 60):
+    def __init__(self, mode: EngineMode = EngineMode.ARCHITECT, target_tps: int = 60, config_path: str = None):
         self.mode = mode
+        self.mode_config = ModeConfigLoader.load_config(config_path) if config_path else {}
         self._mode_strategy: ModeStrategy = self._create_mode_strategy(mode)
         self.world = World()
         self.is_running = False
@@ -32,6 +35,7 @@ class SerpentineEngine:
         GUIEventBus.subscribe("ENGINE_SET_TPS", lambda tps: self.set_tps(tps))
         GUIEventBus.subscribe("ENGINE_SAVE_SNAPSHOT", lambda path: self.save_snapshot(path))
         GUIEventBus.subscribe("ENGINE_LOAD_SNAPSHOT", lambda path: self.load_snapshot(path))
+        GUIEventBus.subscribe("ENGINE_TOGGLE_SYSTEM", lambda data: self.toggle_system(data.get("name"), data.get("enabled")))
 
         # Instantiate systems for this mode
         self.systems: Dict[SystemPhase, List[System]] = {}
@@ -73,8 +77,14 @@ class SerpentineEngine:
 
         try:
             snapshot = self.world.take_snapshot()
-            with open(filepath, 'w') as f:
-                json.dump(snapshot, f, indent=2)
+
+            if filepath.endswith('.gz'):
+                with gzip.open(filepath, 'wt', encoding='utf-8') as f:
+                    json.dump(snapshot, f)
+            else:
+                with open(filepath, 'w') as f:
+                    json.dump(snapshot, f, indent=2)
+
             logger.info(f"Snapshot saved to {filepath}")
         except Exception as e:
             logger.error(f"Failed to save snapshot to {filepath}: {e}")
@@ -86,13 +96,39 @@ class SerpentineEngine:
             return
 
         try:
-            with open(filepath, 'r') as f:
-                snapshot = json.load(f)
+            if filepath.endswith('.gz'):
+                with gzip.open(filepath, 'rt', encoding='utf-8') as f:
+                    snapshot = json.load(f)
+            else:
+                with open(filepath, 'r') as f:
+                    snapshot = json.load(f)
+
             self.world.restore_snapshot(snapshot)
             logger.info(f"Snapshot loaded from {filepath}")
         except Exception as e:
             logger.error(f"Failed to load snapshot from {filepath}: {e}")
             traceback.print_exc()
+
+    def toggle_system(self, system_name: str, enabled: bool):
+        """
+        Dynamically enables or disables a system by name.
+        Note: This currently works by tracking an internal excluded set or modifying the mode_config.
+        Since systems are already instantiated, we need a way to skip them in the loop.
+        """
+        if not system_name:
+            return
+
+        logger.info(f"Toggling system {system_name} to {enabled}")
+
+        # We'll use self.mode_config["excluded_systems"] as the source of truth for dynamic runtime exclusions too.
+        excluded = self.mode_config.setdefault("excluded_systems", [])
+
+        if enabled:
+            if system_name in excluded:
+                excluded.remove(system_name)
+        else:
+            if system_name not in excluded:
+                excluded.append(system_name)
 
     def _initialize_systems(self):
         """Initializes systems based on the current engine mode."""
@@ -102,9 +138,24 @@ class SerpentineEngine:
             system_classes = self._mode_strategy.get_systems(phase)
             initialized_systems = []
 
+            # Check exclusions from mode config (for initial instantiation skipping)
+            # However, for dynamic toggling, we should instantiate everything and check enabled state in the loop?
+            # Or we stick to the current design: "excluded" means "not instantiated".
+            # The user asked for "Dynamic System Toggling".
+            # If we don't instantiate it, we can't enable it later without re-initializing.
+
+            # Revised approach: Instantiate ALL systems for the mode, but check exclusion list in _tick loop.
+
             for cls in system_classes:
+                # We instantiate regardless of exclusion config, so we can toggle later.
+                # UNLESS the mode strategy strictly forbids it? No, Strategy returns list of classes.
+
                 metadata = Registry._system_metadata.get(cls.__name__)
                 tick_rate = metadata.tick_rate if metadata else None
+
+                # Override tick_rate from config if present
+                if "tick_rates" in self.mode_config and cls.__name__ in self.mode_config["tick_rates"]:
+                    tick_rate = self.mode_config["tick_rates"][cls.__name__]
 
                 # Instantiate with tick_rate if the system supports it in __init__
                 # Our base System now supports it.
@@ -167,7 +218,12 @@ class SerpentineEngine:
                     continue
 
             systems = self.systems.get(phase, [])
+            excluded_systems = self.mode_config.get("excluded_systems", [])
+
             for system in systems:
+                if system.__class__.__name__ in excluded_systems:
+                    continue
+
                 try:
                     if system.tick_rate:
                         system._accumulator += dt

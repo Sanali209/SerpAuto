@@ -15,8 +15,14 @@ class World:
         self._entities: Set[EntityID] = set()
         # Map ComponentType -> {EntityID -> ComponentInstance}
         self._components: Dict[Type[BaseComponent], Dict[EntityID, BaseComponent]] = {}
+        # Global configuration storage for scene-specific settings (e.g., gravity, game rules)
+        self.config: Dict[str, Any] = {}
         # Cache for query results: Tuple[ComponentType, ...] -> Set[EntityID]
         self._query_cache: Dict[Tuple[Type[BaseComponent], ...], Set[EntityID]] = {}
+
+    @property
+    def entities(self) -> Set[EntityID]:
+        return self._entities.copy()
 
     def create_entity(self, uid: Optional[UUID] = None) -> EntityID:
         entity_id = EntityID(uid) if uid else create_entity_id()
@@ -140,6 +146,7 @@ class World:
         Serializes the entire world state into a dictionary.
         """
         snapshot = {
+            "config": self.config,
             "entities": []
         }
 
@@ -168,7 +175,13 @@ class World:
         # Clear current state
         self._entities.clear()
         self._components.clear()
+        self.config.clear()
         self._query_cache.clear()
+
+        # Update config directly. If 'config' is not in snapshot, it will stay empty.
+        # This matches take_snapshot structure.
+        if "config" in snapshot:
+             self.config.update(snapshot["config"])
 
         entities_data = snapshot.get("entities", [])
 

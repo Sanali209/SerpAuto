@@ -11,8 +11,8 @@ This document tracks pending tasks for Scene Management and carry-over items fro
 
 ## Phase 9 Carry-Over (Snake Demo & RL)
 ### Remaining Implementation Tasks
-- [ ] **Visualization**: Implement a `SnakeRenderSystem` or use `GUIDebugSystem` to visualize the grid state using DearPyGui.
-- [ ] **Human Input**: Map WASD keys to `ChangeDirectionIntent` in `HumanInputSystem` or a new `SnakeInputSystem` for manual play.
+- [x] **Visualization**: Implement a `SnakeRenderSystem` or use `GUIDebugSystem` to visualize the grid state using DearPyGui.
+- [x] **Human Input**: Map WASD keys to `ChangeDirectionIntent` in `HumanInputSystem` or a new `SnakeInputSystem` for manual play.
 - [ ] **RL Training Script**: Create a script to train a PPO/A2C agent using `stable-baselines3` and `SerpentineGymEnv`.
 
 ### Optimization & Refactoring

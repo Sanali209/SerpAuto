@@ -22,7 +22,7 @@ except ImportError:
 import serpentine.systems.snake
 
 from serpentine.core.engine import SerpentineEngine
-from serpentine.core.registry import EngineMode, Registry
+from serpentine.core.registry import EngineMode, Registry, SystemPhase
 from serpentine.components.snake import SnakeBodyComponent, SnakeFoodComponent, SnakeConfigComponent
 from serpentine.components.standard import TransformComponent, StatsComponent
 from serpentine.components.simulation import RewardComponent
@@ -76,7 +76,14 @@ class SerpentineGymEnv(gym.Env):
         # Reset Engine World
         self.engine.world._entities.clear()
         self.engine.world._components.clear()
+        self.engine.world.config.clear()
         self.engine.world._query_cache.clear()
+
+        # Reset Systems
+        for phase in SystemPhase:
+            systems = self.engine.systems.get(phase, [])
+            for system in systems:
+                system.reset(self.engine.world)
 
         # Spawn Entities
         self.snake_id = self.engine.world.create_entity()

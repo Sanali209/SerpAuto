@@ -42,10 +42,11 @@ class SceneLoader:
                 entities_list.append(entity)
 
         snapshot = {
-            "entities": entities_list
+            "entities": entities_list,
+            "config": scene.global_config if hasattr(scene, 'global_config') else {}
         }
 
-        # Restore entities
+        # Restore entities and config
         world.restore_snapshot(snapshot)
 
         # Apply System Configurations (Registry updates)
