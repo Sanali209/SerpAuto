@@ -72,6 +72,32 @@ class SetBlackboardVariable(BehaviorTreeNode):
         blackboard.set(self.key, self.value)
         return Status.SUCCESS
 
+@Registry.register_node(category="Conditions", icon="🔍", description="Checks if a variable in the blackboard matches a value.")
+class CheckBlackboardVariable(BehaviorTreeNode):
+    class Params(BaseModel):
+        key: str
+        value: Optional[Any] = None
+        check_exists_only: bool = False
+
+    def __init__(self, key: str, value: Optional[Any] = None, check_exists_only: bool = False):
+        super().__init__(params=self.Params(key=key, value=value, check_exists_only=check_exists_only))
+        self.key = key
+        self.value = value
+        self.check_exists_only = check_exists_only
+
+    async def tick(self, world: Any, entity: Any, blackboard: Blackboard) -> Status:
+        if not blackboard.has(self.key):
+            return Status.FAILURE
+
+        if self.check_exists_only:
+            return Status.SUCCESS
+
+        current_value = blackboard.get(self.key)
+        if current_value == self.value:
+            return Status.SUCCESS
+
+        return Status.FAILURE
+
 @Registry.register_node(category="Actions", icon="🖱️", description="Emits a ClickIntent.")
 class ClickNode(BehaviorTreeNode):
     class Params(BaseModel):

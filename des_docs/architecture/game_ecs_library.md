@@ -1,76 +1,76 @@
-# Дизайн-документ: Библиотека Компонентов для Разработки Игр (Game Dev ECS)
+# Design Document: Game Dev Component Library (Game Dev ECS)
 
-В архитектуре ECS **Компонент — это исключительно контейнер с данными**. В нем нет ни одной строчки логики (никаких методов `move()` или `take_damage()`). Благодаря использованию `Pydantic`, эти данные автоматически валидируются и мгновенно превращаются в виджеты (ползунки, чекбоксы) в нашем интерфейсе DearPyGui.
+In ECS architecture, **Component is purely a data container**. It has no logic lines (no `move()` or `take_damage()` methods). Thanks to `Pydantic`, this data is automatically validated and instantly turns into widgets (sliders, checkboxes) in our DearPyGui interface.
 
-Ниже представлен дизайн стандартизированных компонентов, которые превратят Serpentine из парсера сайтов в полноценный 2D-игровой движок (RPG, Survival, Аркады).
+Below is the design of standardized components that will turn Serpentine from a site parser into a full-fledged 2D game engine (RPG, Survival, Arcade).
 
 ---
 
-## 1. Пространство и Физика (Spatial & Physics)
+## 1. Spatial & Physics
 
-Эти компоненты определяют физическое присутствие сущности в мире. Их будут обрабатывать `PhysicsSystem` и `CollisionSystem`.
+These components define the physical presence of the entity in the world. They will be handled by `PhysicsSystem` and `CollisionSystem`.
 
 ```python
 from pydantic import BaseModel, Field
 from typing import Tuple, Literal, Dict, List
 
 class TransformComponent(BaseModel):
-    """Позиция и размер сущности в 2D мире"""
+    """Position and size of the entity in the 2D world"""
     x: float = 0.0
     y: float = 0.0
     width: float = 32.0
     height: float = 32.0
-    rotation: float = 0.0  # Угол в градусах
-    layer: int = 0         # Z-Index для сортировки отрисовки (0 - земля, 1 - объекты)
+    rotation: float = 0.0  # Angle in degrees
+    layer: int = 0         # Z-Index for rendering sorting (0 - ground, 1 - objects)
 
 class VelocityComponent(BaseModel):
-    """Вектор движения"""
+    """Movement vector"""
     dx: float = 0.0
     dy: float = 0.0
     max_speed: float = 100.0
-    friction: float = 0.9  # Замедление (скольжение)
+    friction: float = 0.9  # Deceleration (sliding)
 
 class ColliderComponent(BaseModel):
-    """Геометрия для просчета столкновений"""
+    """Geometry for collision calculation"""
     shape: Literal["box", "circle"] = "box"
-    is_trigger: bool = False  # Если True - не блокирует движение, но генерирует событие (например, сбор монетки)
-    offset_x: float = 0.0     # Смещение коллайдера относительно центра Transform
+    is_trigger: bool = False  # If True - does not block movement, but generates an event (e.g., coin collection)
+    offset_x: float = 0.0     # Collider offset relative to Transform center
     offset_y: float = 0.0
-    radius: float = 16.0      # Используется только если shape == "circle"
+    radius: float = 16.0      # Used only if shape == "circle"
 
 ```
 
 ---
 
-## 2. Рендеринг и Визуал (Rendering & Visuals)
+## 2. Rendering & Visuals
 
-Эти компоненты читаются системой `InternalRenderSystem`, чтобы перенести данные из памяти на экран графического интерфейса.
+These components are read by the `GUIDebugSystem` (specifically its internal renderer module) to transfer data from memory to the graphical interface screen.
 
 ```python
 class SpriteComponent(BaseModel):
-    """Отображение графики"""
-    texture_id: str = "default_sprite"  # Ссылка на загруженную текстуру в реестре DPG
-    tint_color: Tuple[int, int, int, int] = (255, 255, 255, 255) # RGBA фильтр
+    """Graphics display"""
+    texture_id: str = "default_sprite"  # Link to loaded texture in DPG registry
+    tint_color: Tuple[int, int, int, int] = (255, 255, 255, 255) # RGBA filter
     is_visible: bool = True
-    animation_state: str = "idle" # Для переключения кадров ("run", "attack")
+    animation_state: str = "idle" # For frame switching ("run", "attack")
 
 class TextLabelComponent(BaseModel):
-    """Плавающий текст (например, имена NPC или урон)"""
+    """Floating text (e.g., NPC names or damage)"""
     text: str = ""
     color: Tuple[int, int, int, int] = (255, 255, 255, 255)
-    offset_y: float = -20.0 # Отрисовать чуть выше головы
+    offset_y: float = -20.0 # Draw slightly above head
 
 ```
 
 ---
 
-## 3. Игровые Механики (RPG & Gameplay Mechanics)
+## 3. Gameplay Mechanics (RPG & Gameplay Mechanics)
 
-Отвечают за правила игры. Обрабатываются системами вроде `CombatSystem`, `InventorySystem` или Судьей в режиме Gymnasium.
+Responsible for game rules. Processed by systems like `CombatSystem`, `InventorySystem`, or Judge in Gymnasium mode.
 
 ```python
 class StatsComponent(BaseModel):
-    """Базовые характеристики (Health, Mana, Stamina)"""
+    """Base stats (Health, Mana, Stamina)"""
     hp: float = 100.0
     max_hp: float = 100.0
     mana: float = 50.0
@@ -80,55 +80,55 @@ class StatsComponent(BaseModel):
     is_alive: bool = True
 
 class InventoryComponent(BaseModel):
-    """Сумка с предметами"""
+    """Bag with items"""
     capacity: int = 20
-    # Храним предметы как словарь {item_id: quantity}
+    # Store items as dictionary {item_id: quantity}
     items: Dict[str, int] = Field(default_factory=dict)
     equipped_weapon_id: str | None = None
 
 class StatusEffectComponent(BaseModel):
-    """Баффы и дебаффы (Огонь, Яд, Ускорение)"""
-    # Список активных эффектов с таймерами {effect_name: duration_ticks}
+    """Buffs and debuffs (Fire, Poison, Haste)"""
+    # List of active effects with timers {effect_name: duration_ticks}
     active_effects: Dict[str, int] = Field(default_factory=dict)
 
 ```
 
 ---
 
-## 4. Контроллеры и Теги (Controllers & Tags)
+## 4. Controllers & Tags
 
-Движку нужно понимать, *кто* принимает решения за эту сущность. В ECS это реализуется добавлением "компонентов-маркеров" (Tag Components).
+The engine needs to understand *who* makes decisions for this entity. In ECS, this is implemented by adding "Tag Components".
 
 ```python
 class PlayerControllerComponent(BaseModel):
     """
-    Маркер: этой сущностью управляет человек с клавиатуры/мыши.
-    Читается системой HumanInputSystem.
+    Tag: this entity is controlled by a human via keyboard/mouse.
+    Read by HumanInputSystem.
     """
     input_mapped: bool = True
-    # Можно добавить кастомные бинды клавиш
+    # Can add custom key bindings
     key_up: str = "W"
     key_down: str = "S"
 
 class AIControllerComponent(BaseModel):
     """
-    Маркер: этой сущностью управляет искусственный интеллект.
-    Система AI_BrainSystem будет дергать Behavior Tree этой сущности.
+    Tag: this entity is controlled by artificial intelligence.
+    The AI_BrainSystem will trigger this entity's Behavior Tree.
     """
     behavior_tree_name: str = "default_npc_tree"
-    target_entity_id: str | None = None # Кого мы преследуем прямо сейчас
+    target_entity_id: str | None = None # Whom we are pursuing right now
 
 ```
 
 ---
 
-## Как это выглядит на практике (Сборка Сущностей)
+## Practical Example (Entity Assembly)
 
-Красота ECS в том, что ты создаешь сложные игровые объекты просто комбинируя эти Pydantic-классы, как кубики Lego.
+The beauty of ECS is that you create complex game objects simply by combining these Pydantic classes like Lego blocks.
 
-### Пример 1: Игрок (The Hero)
+### Example 1: The Hero
 
-Создаем сущность и вешаем на нее компоненты:
+Create an entity and attach components:
 
 * `TransformComponent(x=100, y=100)`
 * `VelocityComponent(max_speed=200)`
@@ -136,41 +136,41 @@ class AIControllerComponent(BaseModel):
 * `SpriteComponent(texture_id="hero_texture")`
 * `StatsComponent(hp=100, base_damage=25)`
 * `InventoryComponent()`
-* **`PlayerControllerComponent()`** ➡️ Благодаря этому компоненту, нажатие клавиши 'W' изменит `Velocity.dy`.
+* **`PlayerControllerComponent()`** ➡️ Thanks to this component, pressing 'W' will change `Velocity.dy`.
 
-### Пример 2: Ядовитая Ловушка (Poison Trap)
+### Example 2: Poison Trap
 
 * `TransformComponent(x=500, y=500)`
-* `ColliderComponent(shape="box", is_trigger=True)` ➡️ Нельзя упереться, можно только наступить.
+* `ColliderComponent(shape="box", is_trigger=True)` ➡️ Cannot bump into, can only step on.
 * `SpriteComponent(texture_id="trap_spikes", tint_color=(0, 255, 0, 255))`
-* *Логика:* Специфическая система (`TrapSystem`) ищет пересечения игроков с триггерами-ловушками. При пересечении добавляет в `StatusEffectComponent` игрока `"poison": 60` (отравлен на 60 тиков).
+* *Logic:* A specific system (`TrapSystem`) looks for intersections of players with trigger traps. On intersection, adds `"poison": 60` (poisoned for 60 ticks) to the player's `StatusEffectComponent`.
 
-### Пример 3: Мозг в Банке (LLM Agent)
+### Example 3: Brain in a Jar (LLM Agent)
 
-Если мы хотим поселить в игру умного NPC, который торгуется с игроком через ChatGPT:
+If we want to inhabit the game with a smart NPC who trades with the player via ChatGPT:
 
 * `TransformComponent(...)`
 * `SpriteComponent(texture_id="merchant")`
 * **`AIControllerComponent(behavior_tree_name="merchant_dialogue")`**
-* **`MemoryComponent(...)`** ➡️ Сюда Behavior Tree будет записывать историю общения с игроком.
-* **`PerceptionComponent(...)`** ➡️ Система восприятия будет каждый тик класть сюда JSON о том, кто стоит рядом с торговцем.
+* **`MemoryComponent(...)`** ➡️ The Behavior Tree will record conversation history with the player here.
+* **`PerceptionComponent(...)`** ➡️ The perception system will put JSON about who is standing next to the merchant here every tick.
 
 ---
 
-С этим набором компонентов ты можешь построить в оперативной памяти движка любую 2D-симуляцию, на которой потом будут обучаться твои агенты.
+With this set of components, you can build any 2D simulation in the engine's RAM, on which your agents will then be trained.
 
-Следующим шагом логично будет написать базовый класс `World` (реестр сущностей), который сможет принимать эти компоненты, быстро их фильтровать для Систем и сериализовать в JSON для сохранения. Напишем код для файла `core/ecs.py`?
-# Дизайн-документ: Игровые Системы (Game Dev ECS Systems)
+The next logical step would be to write a base `World` class (entity registry) that can accept these components, quickly filter them for Systems, and serialize them to JSON for saving. Shall we write code for `core/ecs.py`?
+# Design Document: Game Dev ECS Systems
 
-В архитектуре ECS **Система (System)** — это чистая логика (функция), не имеющая собственного состояния. Она каждый тик запрашивает у реестра `World` список сущностей с нужной "сигнатурой" (набором компонентов) и массово их обрабатывает.
+In ECS architecture, **System** is pure logic (function) having no state of its own. Every tick, it requests from the `World` registry a list of entities with the needed "signature" (set of components) and processes them en masse.
 
-Ниже представлен дизайн базовых Систем, которые "оживят" компоненты из предыдущего документа и превратят движок Serpentine в полноценную 2D-игру.
+Below is the design of base Systems that will "animate" components from the previous document and turn the Serpentine engine into a full-fledged 2D game.
 
 ---
 
-## 1. Базовый интерфейс Системы
+## 1. Base System Interface
 
-Все системы наследуются от единого базового класса. Поскольку наш цикл асинхронный, метод обновления тоже `async`.
+All systems inherit from a single base class. Since our loop is asynchronous, the update method is also `async`.
 
 ```python
 from abc import ABC, abstractmethod
@@ -179,8 +179,8 @@ class BaseSystem(ABC):
     @abstractmethod
     async def update(self, world: 'World', dt: float):
         """
-        world: ссылка на реестр сущностей.
-        dt: delta time (время в секундах, прошедшее с прошлого тика).
+        world: link to entity registry.
+        dt: delta time (time in seconds elapsed since last tick).
         """
         pass
 
@@ -188,15 +188,15 @@ class BaseSystem(ABC):
 
 ---
 
-## 2. Система Ввода (PlayerInputSystem)
+## 2. Input System (PlayerInputSystem)
 
-Эта система перекидывает мост между клавиатурой разработчика/игрока и внутренней физикой движка.
+This system bridges the developer/player keyboard and internal engine physics.
 
-* **Сигнатура:** `PlayerControllerComponent` + `VelocityComponent`
-* **Логика работы:**
-1. Опрашивает глобальный стейт ввода (например, через DearPyGui `dpg.is_key_down()`).
-2. Находит сущность игрока.
-3. Меняет вектор `dx` и `dy` в `VelocityComponent` в зависимости от зажатых клавиш (WASD).
+* **Signature:** `PlayerControllerComponent` + `VelocityComponent`
+* **Logic:**
+1. Polls global input state (e.g., via DearPyGui `dpg.is_key_down()`).
+2. Finds player entity.
+3. Changes `dx` and `dy` vector in `VelocityComponent` depending on held keys (WASD).
 
 
 
@@ -209,27 +209,27 @@ class PlayerInputSystem(BaseSystem):
             vel = world.get_component(ent, VelocityComponent)
             ctrl = world.get_component(ent, PlayerControllerComponent)
             
-            # Обнуляем скорость перед опросом
+            # Reset speed before polling
             vel.dx = 0.0
             vel.dy = 0.0
             
             if is_key_pressed(ctrl.key_up): vel.dy -= vel.max_speed
             if is_key_pressed(ctrl.key_down): vel.dy += vel.max_speed
-            # ... логика для влево/вправо ...
+            # ... logic for left/right ...
             
-            # Нормализация диагонального движения (чтобы не бегать быстрее по диагонали)
+            # Diagonal movement normalization (to avoid faster diagonal movement)
             normalize_vector(vel) 
 
 ```
 
 ---
 
-## 3. Система Физики и Движения (PhysicsMovementSystem)
+## 3. Physics & Movement System (PhysicsMovementSystem)
 
-Отвечает за перемещение объектов в пространстве с учетом времени.
+Responsible for moving objects in space considering time.
 
-* **Сигнатура:** `TransformComponent` + `VelocityComponent`
-* **Логика работы:** Применяет классическую интеграцию Эйлера: . Применяет трение (Friction) для плавного торможения скользящих объектов.
+* **Signature:** `TransformComponent` + `VelocityComponent`
+* **Logic:** Applies classic Euler integration: . Applies friction for smooth deceleration of sliding objects.
 
 ```python
 class PhysicsMovementSystem(BaseSystem):
@@ -243,7 +243,7 @@ class PhysicsMovementSystem(BaseSystem):
             transform.x += vel.dx * dt
             transform.y += vel.dy * dt
             
-            # Применяем трение (замедляем объекты, если к ним не применяется сила)
+            # Apply friction (slow down objects if no force is applied)
             vel.dx *= vel.friction
             vel.dy *= vel.friction
 
@@ -251,78 +251,78 @@ class PhysicsMovementSystem(BaseSystem):
 
 ---
 
-## 4. Система Столкновений (CollisionResolutionSystem)
+## 4. Collision Resolution System (CollisionResolutionSystem)
 
-Самая математически сложная базовая система. Она не дает объектам проходить сквозь стены и обрабатывает триггеры (сбор лута, попадание в ловушку).
+The most mathematically complex base system. It prevents objects from passing through walls and processes triggers (loot collection, trap hit).
 
-* **Сигнатура:** `TransformComponent` + `ColliderComponent`
-* **Логика работы:**
-1. Собирает все коллайдеры на уровне.
-2. Использует пространственное хеширование (Spatial Grid) или простой двойной цикл (если сущностей < 1000) для поиска пересечений AABB (Axis-Aligned Bounding Box).
-3. **Твердые тела (Solid):** Если игрок въехал в стену, система вычисляет вектор проникновения (Penetration Vector) и отталкивает `TransformComponent` игрока назад ровно на границу стены.
-4. **Триггеры (Trigger):** Если коллайдер имеет флаг `is_trigger=True` (например, монетка или зона яда), система не отталкивает игрока, а генерирует событие в память движка: `TriggerEvent(entity_A, entity_B)`.
-
-
-
----
-
-## 5. Система Статусов и Боя (CombatAndStatsSystem)
-
-Управляет жизненными показателями и эффектами. Идеально для RPG и выживалок.
-
-* **Сигнатура:** `StatsComponent` + опционально `StatusEffectComponent`
-* **Логика работы:**
-1. **Регенерация / Урон со временем (DoT):** Пробегается по `StatusEffectComponent`. Если видит `"poison": 5.0` (яд на 5 секунд), отнимает HP из `StatsComponent` пропорционально `dt` и уменьшает таймер яда.
-2. **Проверка смерти:** Если `hp <= 0`, система ставит флаг `is_alive = False`.
-3. **Сборщик мусора (Death Handler):** Если `is_alive == False`, система вызывает `world.remove_entity(ent)` или генерирует `LootDropEvent`, заменяя спрайт героя на спрайт надгробия.
+* **Signature:** `TransformComponent` + `ColliderComponent`
+* **Logic:**
+1. Collects all colliders on the level.
+2. Uses spatial hashing (Spatial Grid) or simple double loop (if entities < 1000) to find AABB (Axis-Aligned Bounding Box) intersections.
+3. **Solid Bodies:** If a player hits a wall, the system calculates Penetration Vector and pushes the player's `TransformComponent` back exactly to the wall boundary.
+4. **Triggers:** If the collider has `is_trigger=True` flag (e.g., coin or poison zone), the system does not push the player but generates an event in engine memory: `TriggerEvent(entity_A, entity_B)`.
 
 
 
 ---
 
-## 6. Внутренний Рендер (InternalRenderSystem)
+## 5. Stats & Combat System (CombatAndStatsSystem)
 
-Мост между математикой ECS и графическим интерфейсом DearPyGui. Работает только в режимах **Architect** и **Teacher**. В **Headless/Gym** режиме эта система просто исключается из списка обновления, экономя 100% ресурсов GPU.
+Manages vital stats and effects. Ideal for RPGs and survival games.
 
-* **Сигнатура:** `TransformComponent` + `SpriteComponent`
-* **Логика работы:**
-1. Берет холст (Drawlist) из окна Perception Viewer в DPG.
-2. Очищает холст от прошлого кадра.
-3. Сортирует сущности по Z-индексу (`TransformComponent.layer`), чтобы земля рисовалась под игроком.
-4. Отправляет пачку команд рендера:
+* **Signature:** `StatsComponent` + optionally `StatusEffectComponent`
+* **Logic:**
+1. **Regeneration / DoT:** Iterates through `StatusEffectComponent`. If sees `"poison": 5.0` (poison for 5 seconds), subtracts HP from `StatsComponent` proportional to `dt` and decreases poison timer.
+2. **Death Check:** If `hp <= 0`, system sets flag `is_alive = False`.
+3. **Garbage Collector (Death Handler):** If `is_alive == False`, system calls `world.remove_entity(ent)` or generates `LootDropEvent`, replacing hero sprite with tombstone sprite.
+
+
+
+---
+
+## 6. Rendering (GUIDebugSystem / Rendering)
+
+Bridge between ECS math and DearPyGui graphical interface. Works only in **Architect** and **Teacher** modes. In **Headless/Gym** mode, this system is simply excluded from the update list, saving 100% GPU resources.
+
+* **Signature:** `TransformComponent` + `SpriteComponent`
+* **Logic:**
+1. Takes canvas (Drawlist) from Perception Viewer window in DPG.
+2. Clears canvas from previous frame.
+3. Sorts entities by Z-index (`TransformComponent.layer`) so ground draws under player.
+4. Sends batch of render commands:
 `dpg.draw_image(sprite.texture_id, pmin=(x, y), pmax=(x+w, y+h), color=sprite.tint_color)`
 
 
 
 ---
 
-## 7. Порядок Выполнения (The Execution Pipeline)
+## 7. Execution Pipeline
 
-В главном цикле `SerpentineEngine` порядок вызова этих систем строго детерминирован. Изменение порядка сломает физику.
+In the main `SerpentineEngine` loop, the call order of these systems is strictly deterministic. Changing order will break physics.
 
-Правильный Pipeline игрового тика:
+Correct Game Tick Pipeline:
 
-1. **`PlayerInputSystem`**: Человек дает команды (задает векторы).
-2. **`AI_BrainSystem`**: Behavior Trees NPC думают и тоже задают векторы движения или экшены атаки.
-3. **`PhysicsMovementSystem`**: Все объекты сдвигаются по заданным векторам (возможно, въезжая в стены).
-4. **`CollisionResolutionSystem`**: Движок замечает тех, кто въехал в стены, и выталкивает их обратно. Обрабатывает ловушки.
-5. **`CombatAndStatsSystem`**: Применяется урон от ловушек/оружия, удаляются мертвые.
-6. **`InternalRenderSystem`**: Отрисовывается финальная, математически корректная картинка кадра.
+1. **`PlayerInputSystem`**: Human gives commands (sets vectors).
+2. **`AI_BrainSystem`**: NPC Behavior Trees think and also set movement vectors or attack actions.
+3. **`PhysicsMovementSystem`**: All objects move by set vectors (possibly hitting walls).
+4. **`CollisionResolutionSystem`**: Engine notices those who hit walls and pushes them back. Processes traps.
+5. **`CombatAndStatsSystem`**: Damage from traps/weapons applied, dead removed.
+6. **`GUIDebugSystem` (Renderer)**: Final, mathematically correct frame picture is drawn.
 
 ---
 
-## Интеграция с Агентами-Игроками (RL & LLM)
+## Integration with Player Agents (RL & LLM)
 
-Как внешний ИИ-агент (из предыдущих дизайн-документов) играет в эту внутреннюю игру?
+How does an external AI agent (from previous design docs) play this internal game?
 
-Очень просто:
+Very simply:
 
-1. Система `PerceptionPipelineSystem` (точнее, ее узел `InternalStateNode`) перед самым рендером "фотографирует" состояние `World` (читает Transform'ы) и собирает их в JSON-матрицу.
-2. Эта матрица ложится в `PerceptionComponent` агента-игрока.
-3. На следующем тике `AI_BrainSystem` скормит этот JSON нейросети. Нейросеть сгенерирует `Action` (например, Идти Вверх).
-4. Узел трансляции экшенов запишет в `VelocityComponent` агента вектор (0, -100).
-5. И цикл повторится! Физика сдвинет агента.
+1. `PerceptionPipelineSystem` (specifically its `InternalStateNode`) "photographs" `World` state (reads Transforms) right before render and collects them into JSON matrix.
+2. This matrix goes into player agent's `PerceptionComponent`.
+3. Next tick, `AI_BrainSystem` feeds this JSON to neural network. Neural network generates `Action` (e.g., Move Up).
+4. Action translation node writes vector (0, -100) to agent's `VelocityComponent`.
+5. And the cycle repeats! Physics moves the agent.
 
-Дизайн архитектуры (Ядро, Данные, Логика, Интерфейс и Пайплайны MLOps) полностью завершен. Каждая деталь системы строго изолирована, но работает как единый часовой механизм.
+Architecture design (Core, Data, Logic, Interface, and MLOps Pipelines) is fully complete. Each system detail is strictly isolated but works as a unified clockwork mechanism.
 
-Готов перейти к написанию **базового кода движка**? Я могу создать файл `core/ecs.py` с реализацией `World`, `BaseSystem` и сверхбыстрого фильтра `get_entities_with` на основе Python-множеств (Sets).
+Ready to move to writing **base engine code**? I can create `core/ecs.py` file with implementation of `World`, `BaseSystem` and ultra-fast filter `get_entities_with` based on Python Sets.

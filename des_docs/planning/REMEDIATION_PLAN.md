@@ -12,9 +12,9 @@ This document outlines the step-by-step roadmap to resolve the discrepancies ide
 *   [x] **Task:** Create `des_docs/GLOSSARY.md`.
 
 ### 1.2. Documentation Standardization
-*   [ ] **Task:** Translate `des_docs/architecture/engine_overview.md` to English.
+*   [x] **Task:** Translate `des_docs/architecture/engine_overview.md` to English.
 *   [x] **Task:** Translate `des_docs/modes/*.md` files to English.
-*   [ ] **Task:** Remove or update outdated references to "InternalRenderSystem".
+*   [x] **Task:** Remove or update outdated references to "InternalRenderSystem".
 
 ---
 
@@ -23,17 +23,17 @@ This document outlines the step-by-step roadmap to resolve the discrepancies ide
 **Goal:** Align the codebase with the documentation promises and implement missing core logic.
 
 ### 2.1. Behavior Tree Standard Library (Universalization)
-*   [ ] **Task:** Implement **Decorator Nodes** in `brain/nodes.py`.
-*   [ ] **Task:** Implement **Blackboard Logic Nodes** in `brain/nodes.py`.
-*   [ ] **Task:** Implement **Control Flow Nodes** in `brain/behavior_tree.py`.
-*   [ ] **Task:** Implement **Utility Nodes** (WaitNode).
+*   [x] **Task:** Implement **Decorator Nodes** in `brain/nodes.py`.
+*   [x] **Task:** Implement **Blackboard Logic Nodes** in `brain/nodes.py`.
+*   [x] **Task:** Implement **Control Flow Nodes** in `brain/behavior_tree.py`.
+*   [x] **Task:** Implement **Utility Nodes** (WaitNode).
 
 ### 2.2. Perception Gaps
-*   [ ] **Task:** Implement `OCRNode` in `perception/cv_nodes.py`.
-*   [ ] **Task:** Implement `GridMapperNode` in `perception/internal_nodes.py`.
+*   [x] **Task:** Implement `OCRNode` in `perception/cv_nodes.py`.
+*   [x] **Task:** Implement `GridMapperNode` in `perception/internal_nodes.py`.
 
 ### 2.3. Gym Integration Fix
-*   [ ] **Task:** Refactor `core/env_wrapper.py`. Remove hardcoded `(64,64,3)`.
+*   [x] **Task:** Refactor `core/env_wrapper.py`. Remove hardcoded `(64,64,3)`.
 
 ---
 
